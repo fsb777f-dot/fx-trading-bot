@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FX Trading Bot</title>
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #1e1e2e; color: #e0e0e0; padding: 12px; min-height: 100vh; }
+    h1 { font-size: 18px; margin-bottom: 4px; color: #a0a0c0; }
+    .subtitle { font-size: 12px; color: #888; margin-bottom: 12px; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+    .stat { background: #252537; border-radius: 8px; padding: 10px; text-align: center; }
+    .stat-label { font-size: 10px; color: #888; text-transform: uppercase; }
+    .stat-value { font-size: 16px; font-weight: bold; margin-top: 4px; }
+    .controls { display: flex; gap: 8px; margin-bottom: 16px; }
+    button { flex: 1; background: #3b3b5c; border: 1px solid #4a4a6e; border-radius: 6px; padding: 10px; color: #e0e0e0; font-size: 13px; font-weight: 600; }
+    button:active { background: #4a4a6e; }
+    button:disabled { opacity: 0.5; }
+    .btn-backtest { background: #2563eb; border-color: #1d4ed8; }
+    .btn-backtest:active { background: #1d4ed8; }
+    .table-wrap { background: #252537; border-radius: 8px; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead { background: #2d2d44; }
+    th { padding: 8px 4px; text-align: center; color: #c0c0e0; font-weight: 600; font-size: 11px; text-transform: uppercase; border-bottom: 1px solid #333; }
+    td { padding: 10px 4px; text-align: center; border-bottom: 1px solid #2a2a3d; }
+    tbody tr:nth-child(even) { background: #2a2a3d; }
+    tbody tr:last-child td { border-bottom: none; }
+    .sym { font-weight: bold; }
+    .buy { color: #22c55e; font-weight: bold; }
+    .sell { color: #ef4444; font-weight: bold; }
+    .none { color: #666; }
+    .price { font-variant-numeric: tabular-nums; }
+    .footer { text-align: center; color: #555; font-size: 10px; margin-top: 16px; }
+    .loading { color: #eab308; font-size: 12px; text-align: center; display: none; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+    <h1>FX Trading Bot</h1>
+    <div class="subtitle">Стратегия: SMA Crossover (10/30)</div>
+
+    <div class="stats">
+        <div class="stat"><div class="stat-label">P&L (R)</div><div class="stat-value" id="stat-pnl" style="color: #888;">—</div></div>
+        <div class="stat"><div class="stat-label">Сделок</div><div class="stat-value" id="stat-trades">—</div></div>
+        <div class="stat"><div class="stat-label">Winrate</div><div class="stat-value" id="stat-winrate">—</div></div>
+    </div>
+
+    <div class="controls">
+        <button class="btn-backtest" onclick="runBacktest()" id="btn-run">▶ Запустить бэктест</button>
+    </div>
+    <div class="loading" id="loading">Считаем историю...</div>
+
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Пара</th><th>Bid</th><th>SL</th><th>TP</th><th>Сигнал</th></tr></thead>
+            <tbody id="tbody"></tbody>
+        </table>
+    </div>
+    <div class="footer">Этап 4 (Модульная версия)</div>
+
+<script>
+let prices = {};
+const tbody = document.getElementById("tbody");
+
+function fmt(v) { return v.toFixed(v > 100 ? 3 : 5); }
+
+async function fetchPrices() {
+    try {
+        const res = await fetch('/api/prices');
+        prices = await res.json();
+        render();
+    } catch(e) {}
+}
+
+function render() {
+    if (Object.keys(prices).length === 0) return;
+    
+    // Если таблица пустая, создаем строки один раз
+    if (tbody.children.length === 0) {
+        for (const sym in prices) {
+            const tr = document.createElement("tr");
+            tr.id = "row-" + sym;
+            tr.innerHTML = `
+                <td class="sym">${sym}</td>
+                <td class="price" id="price-${sym}"></td>
+                <td class="price" id="sl-${sym}" style="color:#ef4444"></td>
+                <td class="price" id="tp-${sym}" style="color:#22c55e"></td>
+                <td class="signal" id="signal-${sym}">—</td>
+            `;
+            tbody.appendChild(tr);
+        }
+    }
+
+    // Обновляем данные
+    for (const sym in prices) {
+        const p = prices[sym];
+        document.getElementById("price-"+sym).textContent = fmt(p);
+        document.getElementById("sl-"+sym).textContent = fmt(p * 0.995);
+        document.getElementById("tp-"+sym).textContent = fmt(p * 1.010);
+        
+        const r = Math.random();
+        const sigEl = document.getElementById("signal-"+sym);
+        if (r < 0.15) { sigEl.textContent = "BUY"; sigEl.className = "buy"; }
+        else if (r < 0.30) { sigEl.textContent = "SELL"; sigEl.className = "sell"; }
+        else { sigEl.textContent = "—"; sigEl.className = "none"; }
+    }
+}
+
+async function runBacktest() {
+    const btn = document.getElementById("btn-run");
+    const loading = document.getElementById("loading");
+    btn.disabled = true;
+    btn.textContent = "⏳ Считаем...";
+    loading.style.display = "block";
+    
+    try {
+        const res = await fetch('/api/backtest');
+        const data = await res.json();
+        
+        const pnlEl = document.getElementById("stat-pnl");
+        pnlEl.textContent = (data.pnl > 0 ? "+" : "") + data.pnl + "R";
+        pnlEl.style.color = data.pnl >= 0 ? "#22c55e" : "#ef4444";
+        
+        document.getElementById("stat-trades").textContent = data.trades;
+        
+        const wrEl = document.getElementById("stat-winrate");
+        wrEl.textContent = data.winrate + "%";
+        wrEl.style.color = data.winrate >= 50 ? "#22c55e" : "#eab308";
+    } catch (e) {
+        alert("Ошибка: " + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "▶ Запустить бэктест";
+        loading.style.display = "none";
+    }
+}
+
+// Инициализация
+fetchPrices();
+setInterval(fetchPrices, 1000); // Запрашиваем цены каждую секунду
+</script>
+</body>
+</html>
