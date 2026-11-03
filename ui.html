@@ -2,142 +2,232 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>FX Trading Bot</title>
+<!-- Подключаем библиотеку графиков TradingView -->
+<script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
 <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #1e1e2e; color: #e0e0e0; padding: 12px; min-height: 100vh; }
-    h1 { font-size: 18px; margin-bottom: 4px; color: #a0a0c0; }
-    .subtitle { font-size: 12px; color: #888; margin-bottom: 12px; }
-    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
-    .stat { background: #252537; border-radius: 8px; padding: 10px; text-align: center; }
-    .stat-label { font-size: 10px; color: #888; text-transform: uppercase; }
-    .stat-value { font-size: 16px; font-weight: bold; margin-top: 4px; }
-    .controls { display: flex; gap: 8px; margin-bottom: 16px; }
-    button { flex: 1; background: #3b3b5c; border: 1px solid #4a4a6e; border-radius: 6px; padding: 10px; color: #e0e0e0; font-size: 13px; font-weight: 600; }
-    button:active { background: #4a4a6e; }
-    button:disabled { opacity: 0.5; }
-    .btn-backtest { background: #2563eb; border-color: #1d4ed8; }
-    .btn-backtest:active { background: #1d4ed8; }
-    .table-wrap { background: #252537; border-radius: 8px; overflow: hidden; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    thead { background: #2d2d44; }
-    th { padding: 8px 4px; text-align: center; color: #c0c0e0; font-weight: 600; font-size: 11px; text-transform: uppercase; border-bottom: 1px solid #333; }
-    td { padding: 10px 4px; text-align: center; border-bottom: 1px solid #2a2a3d; }
-    tbody tr:nth-child(even) { background: #2a2a3d; }
-    tbody tr:last-child td { border-bottom: none; }
-    .sym { font-weight: bold; }
-    .buy { color: #22c55e; font-weight: bold; }
-    .sell { color: #ef4444; font-weight: bold; }
-    .none { color: #666; }
-    .price { font-variant-numeric: tabular-nums; }
-    .footer { text-align: center; color: #555; font-size: 10px; margin-top: 16px; }
-    .loading { color: #eab308; font-size: 12px; text-align: center; display: none; margin-bottom: 10px; }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #131722; /* Цвет как в TradingView */
+        color: #d1d4dc; padding-bottom: 60px; /* Отступ под нижнее меню */
+    }
+    
+    /* --- График --- */
+    #chart-container { width: 100%; height: 320px; background: #131722; }
+    
+    /* --- Информация о выбранной паре --- */
+    .pair-header { padding: 16px; border-bottom: 1px solid #2a2e39; }
+    .pair-title-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+    .pair-title { font-size: 22px; font-weight: 700; color: #fff; }
+    .pair-change { font-size: 14px; font-weight: 600; color: #089981; } /* Зеленый для роста */
+    
+    .levels-row { display: flex; gap: 8px; }
+    .level-box { flex: 1; background: #1e222d; border-radius: 6px; padding: 8px; }
+    .level-label { font-size: 11px; color: #787b86; margin-bottom: 4px; }
+    .level-value { font-size: 14px; font-weight: 600; }
+    .level-value.sl { color: #f23645; } /* Красный */
+    .level-value.tp { color: #089981; } /* Зеленый */
+    
+    .disclaimer { font-size: 11px; color: #787b86; margin-top: 12px; line-height: 1.4; }
+    
+    /* --- Список пар --- */
+    .pair-list { background: #131722; }
+    .list-item { 
+        display: flex; justify-content: space-between; align-items: center; 
+        padding: 14px 16px; border-bottom: 1px solid #2a2e39; cursor: pointer;
+    }
+    .list-item.active { background: #1e222d; }
+    .list-item-left { display: flex; flex-direction: column; }
+    .list-symbol { font-size: 16px; font-weight: 600; color: #fff; }
+    .list-signal { font-size: 11px; color: #787b86; margin-top: 2px; }
+    .list-item-right { text-align: right; display: flex; flex-direction: column; }
+    .list-price { font-size: 16px; font-weight: 500; }
+    .list-price-change { font-size: 12px; }
+    .up { color: #089981; } .down { color: #f23645; } .neutral { color: #787b86; }
+    
+    /* --- Нижнее меню --- */
+    .bottom-nav {
+        position: fixed; bottom: 0; left: 0; width: 100%; height: 60px;
+        background: #1e222d; display: flex; justify-content: space-around;
+        align-items: center; border-top: 1px solid #2a2e39;
+    }
+    .nav-item { color: #787b86; font-size: 11px; text-align: center; display: flex; flex-direction: column; gap: 4px; }
+    .nav-item.active { color: #2962ff; }
+    .nav-icon { font-size: 20px; }
 </style>
 </head>
 <body>
-    <h1>FX Trading Bot</h1>
-    <div class="subtitle">Стратегия: SMA Crossover (10/30)</div>
 
-    <div class="stats">
-        <div class="stat"><div class="stat-label">P&L (R)</div><div class="stat-value" id="stat-pnl" style="color: #888;">—</div></div>
-        <div class="stat"><div class="stat-label">Сделок</div><div class="stat-value" id="stat-trades">—</div></div>
-        <div class="stat"><div class="stat-label">Winrate</div><div class="stat-value" id="stat-winrate">—</div></div>
+    <!-- Контейнер для свечного графика -->
+    <div id="chart-container"></div>
+
+    <!-- Блок с информацией о паре -->
+    <div class="pair-header">
+        <div class="pair-title-row">
+            <div class="pair-title" id="header-symbol">EUR/USD</div>
+            <div class="pair-change" id="header-change">+0.31%</div>
+        </div>
+        <div class="levels-row">
+            <div class="level-box">
+                <div class="level-label">Вход</div>
+                <div class="level-value" id="header-entry">1.08642</div>
+            </div>
+            <div class="level-box">
+                <div class="level-label">Стоп-лосс</div>
+                <div class="level-value sl" id="header-sl">1.08460</div>
+            </div>
+            <div class="level-box">
+                <div class="level-label">Тейк-профит</div>
+                <div class="level-value tp" id="header-tp">1.09007</div>
+            </div>
+        </div>
+        <div class="disclaimer">Уровни пока считаются заглушкой. Настоящие точки входа появятся после подключения стратегий.</div>
     </div>
 
-    <div class="controls">
-        <button class="btn-backtest" onclick="runBacktest()" id="btn-run">▶ Запустить бэктест</button>
+    <!-- Список пар -->
+    <div class="pair-list" id="pair-list">
+        <!-- Заполняется через JS -->
     </div>
-    <div class="loading" id="loading">Считаем историю...</div>
 
-    <div class="table-wrap">
-        <table>
-            <thead><tr><th>Пара</th><th>Bid</th><th>SL</th><th>TP</th><th>Сигнал</th></tr></thead>
-            <tbody id="tbody"></tbody>
-        </table>
+    <!-- Нижнее меню -->
+    <div class="bottom-nav">
+        <div class="nav-item active"><div class="nav-icon">📈</div>Рынок</div>
+        <div class="nav-item"><div class="nav-icon">⚙️</div>Стратегии</div>
+        <div class="nav-item"><div class="nav-icon">🧪</div>Тест</div>
+        <div class="nav-item"><div class="nav-icon">💼</div>Счёт</div>
     </div>
-    <div class="footer">Этап 4 (Модульная версия)</div>
 
 <script>
-let prices = {};
-const tbody = document.getElementById("tbody");
+// Инициализация графика
+const chartContainer = document.getElementById('chart-container');
+const chart = LightweightCharts.createChart(chartContainer, {
+    layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
+    grid: { vertLines: { color: '#2a2e39' }, horzLines: { color: '#2a2e39' } },
+    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+    rightPriceScale: { borderColor: '#2a2e39' },
+    timeScale: { borderColor: '#2a2e39', timeVisible: true },
+    handleScroll: false, handleScale: false, // Отключаем скролл, чтобы страница не дергалась
+});
 
+// Создаем серию свечей
+const candleSeries = chart.addCandlestickSeries({
+    upColor: '#089981', downColor: '#f23645', borderVisible: false,
+    wickUpColor: '#089981', wickDownColor: '#f23645',
+});
+
+// Данные для пар (базовые)
+const PAIRS = ["EURUSD", "GBPUSD", "USDJPY", "USDCHF", "AUDUSD", "USDCAD", "NZDUSD", "EURGBP", "EURJPY", "EURCHF"];
+const BASE_PRICES = {
+    "EURUSD": 1.08642, "GBPUSD": 1.27846, "USDJPY": 151.99234, "USDCHF": 0.88093,
+    "AUDUSD": 0.65640, "USDCAD": 1.37039, "NZDUSD": 0.60120, "EURGBP": 0.85420, "EURJPY": 165.120, "EURCHF": 0.95710
+};
+
+let currentPair = "EURUSD";
+let prices = Object.assign({}, BASE_PRICES);
+
+// Генерация фейковых свечей для графика
+function generateCandles(basePrice, count = 100) {
+    let candles = [];
+    let p = basePrice;
+    let time = Math.floor(Date.now() / 1000) - (count * 60); // Начинаем с прошлого
+    
+    for (let i = 0; i < count; i++) {
+        let open = p;
+        let close = p + (Math.random() - 0.5) * p * 0.002;
+        let high = Math.max(open, close) + Math.random() * p * 0.001;
+        let low = Math.min(open, close) - Math.random() * p * 0.001;
+        
+        candles.push({ time: time + (i * 60), open, high, low, close });
+        p = close;
+    }
+    return candles;
+}
+
+// Форматирование цены
 function fmt(v) { return v.toFixed(v > 100 ? 3 : 5); }
 
-async function fetchPrices() {
-    try {
-        const res = await fetch('/api/prices');
-        prices = await res.json();
-        render();
-    } catch(e) {}
-}
-
-function render() {
-    if (Object.keys(prices).length === 0) return;
+// Обновление заголовка и уровней
+function updateHeader(sym, price) {
+    document.getElementById('header-symbol').textContent = sym.slice(0,3) + "/" + sym.slice(3);
+    document.getElementById('header-entry').textContent = fmt(price);
+    document.getElementById('header-sl').textContent = fmt(price * 0.995);
+    document.getElementById('header-tp').textContent = fmt(price * 1.010);
     
-    // Если таблица пустая, создаем строки один раз
-    if (tbody.children.length === 0) {
-        for (const sym in prices) {
-            const tr = document.createElement("tr");
-            tr.id = "row-" + sym;
-            tr.innerHTML = `
-                <td class="sym">${sym}</td>
-                <td class="price" id="price-${sym}"></td>
-                <td class="price" id="sl-${sym}" style="color:#ef4444"></td>
-                <td class="price" id="tp-${sym}" style="color:#22c55e"></td>
-                <td class="signal" id="signal-${sym}">—</td>
-            `;
-            tbody.appendChild(tr);
-        }
-    }
-
-    // Обновляем данные
-    for (const sym in prices) {
-        const p = prices[sym];
-        document.getElementById("price-"+sym).textContent = fmt(p);
-        document.getElementById("sl-"+sym).textContent = fmt(p * 0.995);
-        document.getElementById("tp-"+sym).textContent = fmt(p * 1.010);
-        
-        const r = Math.random();
-        const sigEl = document.getElementById("signal-"+sym);
-        if (r < 0.15) { sigEl.textContent = "BUY"; sigEl.className = "buy"; }
-        else if (r < 0.30) { sigEl.textContent = "SELL"; sigEl.className = "sell"; }
-        else { sigEl.textContent = "—"; sigEl.className = "none"; }
-    }
+    // Фейковое изменение в процентах
+    const change = (Math.random() * 2 - 1).toFixed(2);
+    const changeEl = document.getElementById('header-change');
+    changeEl.textContent = (change > 0 ? "+" : "") + change + "%";
+    changeEl.className = "pair-change " + (change > 0 ? "up" : "down");
 }
 
-async function runBacktest() {
-    const btn = document.getElementById("btn-run");
-    const loading = document.getElementById("loading");
-    btn.disabled = true;
-    btn.textContent = "⏳ Считаем...";
-    loading.style.display = "block";
+// Отрисовка списка пар
+function renderList() {
+    const listEl = document.getElementById('pair-list');
+    listEl.innerHTML = "";
     
-    try {
-        const res = await fetch('/api/backtest');
-        const data = await res.json();
+    PAIRS.forEach(sym => {
+        const price = prices[sym];
+        const change = (Math.random() * 2 - 1).toFixed(2);
+        const isActive = sym === currentPair ? "active" : "";
         
-        const pnlEl = document.getElementById("stat-pnl");
-        pnlEl.textContent = (data.pnl > 0 ? "+" : "") + data.pnl + "R";
-        pnlEl.style.color = data.pnl >= 0 ? "#22c55e" : "#ef4444";
+        const item = document.createElement('div');
+        item.className = `list-item ${isActive}`;
+        item.onclick = () => selectPair(sym);
         
-        document.getElementById("stat-trades").textContent = data.trades;
-        
-        const wrEl = document.getElementById("stat-winrate");
-        wrEl.textContent = data.winrate + "%";
-        wrEl.style.color = data.winrate >= 50 ? "#22c55e" : "#eab308";
-    } catch (e) {
-        alert("Ошибка: " + e.message);
-    } finally {
-        btn.disabled = false;
-        btn.textContent = "▶ Запустить бэктест";
-        loading.style.display = "none";
-    }
+        item.innerHTML = `
+            <div class="list-item-left">
+                <div class="list-symbol">${sym.slice(0,3)}/${sym.slice(3)}</div>
+                <div class="list-signal">нет сигнала</div>
+            </div>
+            <div class="list-item-right">
+                <div class="list-price">${fmt(price)}</div>
+                <div class="list-price-change ${change > 0 ? 'up' : 'down'}">${change > 0 ? '+' : ''}${change}%</div>
+            </div>
+        `;
+        listEl.appendChild(item);
+    });
 }
 
-// Инициализация
-fetchPrices();
-setInterval(fetchPrices, 1000); // Запрашиваем цены каждую секунду
+// Выбор пары (обновляет график и заголовок)
+function selectPair(sym) {
+    currentPair = sym;
+    const price = prices[sym];
+    
+    updateHeader(sym, price);
+    candleSeries.setData(generateCandles(price));
+    renderList(); // Перерисовываем список, чтобы подсветить активную
+    
+    // Автоматически подгоняем масштаб графика
+    chart.timeScale().fitContent();
+}
+
+// Симуляция изменения цен (каждую секунду)
+setInterval(() => {
+    PAIRS.forEach(sym => {
+        prices[sym] += (Math.random() - 0.5) * prices[sym] * 0.0002;
+    });
+    
+    // Обновляем заголовок и список
+    updateHeader(currentPair, prices[currentPair]);
+    renderList();
+    
+    // Обновляем последнюю свечу на графике
+    const price = prices[currentPair];
+    const lastCandle = generateCandles(price, 1)[0];
+    candleSeries.update({
+        time: Math.floor(Date.now() / 1000),
+        open: price,
+        high: price + 0.0005,
+        low: price - 0.0005,
+        close: price
+    });
+    
+}, 1000);
+
+// Запуск при загрузке
+selectPair("EURUSD");
 </script>
 </body>
 </html>
