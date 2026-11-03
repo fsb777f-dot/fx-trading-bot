@@ -2,254 +2,111 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>FX Trading Bot</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0b1220">
+<title>FX Terminal</title>
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #131722; color: #d1d4dc; padding-bottom: 60px; }
-    .screen { display: none; }
-    .screen.active { display: block; }
-    
-    /* --- Экран Рынок --- */
-    #chart-container { width: 100%; height: 300px; background: #131722; }
-    .pair-header { padding: 16px; border-bottom: 1px solid #2a2e39; }
-    .pair-title-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
-    .pair-title { font-size: 22px; font-weight: 700; color: #fff; }
-    .pair-change { font-size: 14px; font-weight: 600; color: #089981; }
-    .levels-row { display: flex; gap: 8px; margin-bottom: 12px; }
-    .level-box { flex: 1; background: #1e222d; border-radius: 6px; padding: 8px; }
-    .level-label { font-size: 11px; color: #787b86; margin-bottom: 4px; }
-    .level-value { font-size: 14px; font-weight: 600; }
-    .level-value.sl { color: #f23645; }
-    .level-value.tp { color: #089981; }
-    
-    /* Активная стратегия */
-    .active-strategy-box { background: #1e222d; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #2962ff; }
-    .as-label { font-size: 12px; color: #787b86; text-transform: uppercase; }
-    .as-name { font-size: 16px; font-weight: 700; color: #2962ff; }
-
-    /* --- Экран Стратегии --- */
-    .strategy-item { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid #2a2e39; }
-    .strategy-name { font-size: 15px; font-weight: 600; color: #fff; }
-    .btn-apply { background: #2a2e39; border: 1px solid #363a45; color: #d1d4dc; padding: 6px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer; }
-    .btn-apply.active { background: #2962ff; border-color: #2962ff; color: #fff; }
-
-    /* --- Экран Тест --- */
-    .test-header { padding: 16px; text-align: center; }
-    .btn-primary { width: 100%; background: #2962ff; border: none; border-radius: 6px; padding: 12px; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 16px; }
-    .btn-primary:disabled { opacity: 0.6; }
-    .result-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #2a2e39; }
-    .result-row.top1 { background: #1e222d; }
-    .res-left { display: flex; flex-direction: column; }
-    .res-title { font-size: 14px; font-weight: 700; color: #fff; }
-    .res-stats { font-size: 11px; color: #787b86; margin-top: 2px; }
-    .res-right { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 6px;}
-    .res-pnl { font-size: 15px; font-weight: 700; }
-
-    /* Нижнее меню */
-    .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; height: 60px; background: #1e222d; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #2a2e39; z-index: 100; }
-    .nav-item { color: #787b86; font-size: 11px; text-align: center; display: flex; flex-direction: column; gap: 4px; cursor: pointer; }
-    .nav-item.active { color: #2962ff; }
-    .nav-icon { font-size: 20px; }
+:root{--bg:#0b1220;--panel:#111c2e;--panel2:#17243a;--line:#24334b;--muted:#8494ad;--text:#edf3fc;--blue:#5b8cff;--green:#20c997;--red:#ff657a;--gold:#f5bd4f}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);padding-bottom:76px}
+header{padding:17px 16px 13px;background:linear-gradient(135deg,#14233b,#0e1728);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.brand{display:flex;justify-content:space-between;align-items:center}.brand h1{font-size:20px;letter-spacing:.2px}.brand small{color:var(--muted);font-size:10px;display:block;margin-top:3px;letter-spacing:1.3px}
+.mode{font-size:10px;color:var(--gold);border:1px solid #725b2c;background:#332a19;padding:6px 9px;border-radius:20px;font-weight:800}
+main{padding:14px;max-width:900px;margin:auto}.screen{display:none}.screen.active{display:block}
+.section-head{display:flex;justify-content:space-between;align-items:center;margin:3px 0 12px}.section-head h2{font-size:17px}.muted{color:var(--muted);font-size:12px}
+.market-layout{display:grid;grid-template-columns:1fr;gap:12px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:14px;box-shadow:0 8px 22px #0002}
+.pair-strip{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.pair{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:10px;text-align:left;color:var(--text);min-width:0}
+.pair.active{border-color:var(--blue);background:#172947;box-shadow:inset 0 0 0 1px #5b8cff33}
+.pair strong{font-size:13px;display:block}.pair span{font-size:11px;color:var(--muted);display:block;margin-top:5px;font-variant-numeric:tabular-nums}
+.pair .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-right:5px}
+.quote-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.quote-head h2{font-size:22px}.price{font-size:21px;font-weight:750;font-variant-numeric:tabular-nums}.chart{height:230px;width:100%}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}.metric{background:var(--panel2);padding:10px;border-radius:10px}.metric label{display:block;color:var(--muted);font-size:10px;margin-bottom:6px}.metric b{font-size:12px;font-variant-numeric:tabular-nums}.green{color:var(--green)!important}.red{color:var(--red)!important}.gold{color:var(--gold)!important}
+.select{width:100%;padding:12px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:10px;margin:9px 0 12px;font-size:14px}
+.btn{border:0;border-radius:10px;padding:12px 15px;background:var(--blue);color:white;font-weight:750;font-size:13px;width:100%}.btn.secondary{background:var(--panel2);border:1px solid var(--line);color:var(--text)}
+.strategy-card{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:13px 0;border-bottom:1px solid var(--line)}.strategy-card:last-child{border:0}.strategy-card strong{font-size:13px}.strategy-card button{background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:8px 10px;border-radius:8px;font-size:11px}.strategy-card button.active{background:#183b32;color:var(--green);border-color:#246b56}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:13px}.stat{background:var(--panel);border:1px solid var(--line);padding:13px;border-radius:13px}.stat label{font-size:10px;color:var(--muted);display:block;margin-bottom:7px}.stat b{font-size:21px;font-variant-numeric:tabular-nums}
+.trade{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:13px;margin-bottom:9px;border-left:3px solid var(--muted)}.trade.win{border-left-color:var(--green)}.trade.loss{border-left-color:var(--red)}.trade.open{border-left-color:var(--gold)}
+.trade-top{display:flex;justify-content:space-between;gap:8px;align-items:center}.trade-top strong{font-size:14px}.tag{font-size:9px;font-weight:800;padding:5px 7px;border-radius:20px;background:var(--panel2);color:var(--muted)}.tag.tp{background:#12372f;color:var(--green)}.tag.sl{background:#401f2b;color:var(--red)}.tag.open{background:#3b301a;color:var(--gold)}
+.trade-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:11px}.trade-grid label{display:block;color:var(--muted);font-size:9px;margin-bottom:4px}.trade-grid b{font-size:11px;font-variant-numeric:tabular-nums}.trade-foot{font-size:10px;color:var(--muted);margin-top:10px;display:flex;justify-content:space-between;gap:8px}
+.empty{text-align:center;color:var(--muted);padding:30px 12px;font-size:13px}
+.nav{position:fixed;bottom:0;left:0;right:0;height:67px;background:#101a2b;border-top:1px solid var(--line);display:flex;justify-content:space-around;z-index:10;padding-bottom:env(safe-area-inset-bottom)}
+.nav button{border:0;background:none;color:var(--muted);font-size:10px;min-width:70px}.nav button span{display:block;font-size:19px;margin-bottom:3px}.nav button.active{color:var(--blue)}
+.note{font-size:10px;color:var(--muted);line-height:1.5;margin-top:10px}
+@media(min-width:700px){.market-layout{grid-template-columns:1.2fr .8fr}.pair-strip{grid-template-columns:repeat(4,1fr)}.stats{grid-template-columns:repeat(4,1fr)}.stat b{font-size:24px}}
 </style>
 </head>
 <body>
-
-<!-- ЭКРАН: РЫНОК -->
-<div id="screen-market" class="screen active">
-    <div id="chart-container"></div>
-    <div class="pair-header">
-        <div class="pair-title-row">
-            <div class="pair-title" id="header-symbol">EUR/USD</div>
-            <div class="pair-change" id="header-change">+0.31%</div>
-        </div>
-        <div class="levels-row">
-            <div class="level-box"><div class="level-label">Вход</div><div class="level-value" id="header-entry">1.08642</div></div>
-            <div class="level-box"><div class="level-label">Стоп-лосс</div><div class="level-value sl" id="header-sl">1.08460</div></div>
-            <div class="level-box"><div class="level-label">Тейк-профит</div><div class="level-value tp" id="header-tp">1.09007</div></div>
-        </div>
-        <div class="active-strategy-box">
-            <div>
-                <div class="as-label">Текущая стратегия</div>
-                <div class="as-name" id="active-strat-text">SMA 10/30</div>
-            </div>
-            <div style="font-size:24px;">⚙️</div>
-        </div>
-    </div>
-</div>
-
-<!-- ЭКРАН: СТРАТЕГИИ -->
-<div id="screen-strategies" class="screen">
-    <div style="padding: 16px; border-bottom: 1px solid #2a2e39;">
-        <h2 style="color:#fff; font-size:20px;">Выбор стратегии</h2>
-        <p style="color:#787b86; font-size:12px; margin-top:4px;">Выберите одну из 20 стратегий для активной торговли.</p>
-    </div>
-    <div id="strategies-container"></div>
-</div>
-
-<!-- ЭКРАН: ТЕСТ -->
-<div id="screen-test" class="screen">
-    <div class="test-header">
-        <h2 style="color:#fff; font-size:20px;">Сравнение стратегий</h2>
-        <p style="color:#787b86; font-size:12px; margin-top:8px;">Проверьте все 20 стратегий на истории и выберите лучшую.</p>
-        <button class="btn-primary" onclick="runCompare()" id="btn-run-compare">▶ Запустить тест</button>
-        <div id="loading" style="display:none; color:#eab308; margin-top:12px; font-size:13px;">⏳ Считаем историю...</div>
-    </div>
-    <div id="compare-results"></div>
-</div>
-
-<!-- НИЖНЕЕ МЕНЮ -->
-<div class="bottom-nav">
-    <div class="nav-item active" onclick="switchTab('market', this)"><div class="nav-icon">📈</div>Рынок</div>
-    <div class="nav-item" onclick="switchTab('strategies', this)"><div class="nav-icon">⚙️</div>Стратегии</div>
-    <div class="nav-item" onclick="switchTab('test', this)"><div class="nav-icon">🧪</div>Тест</div>
-</div>
-
+<header><div class="brand"><div><h1>FX TERMINAL</h1><small>SMART SCALPING · 5 MIN</small></div><div class="mode">● DEMO SIMULATION</div></div></header>
+<main>
+<section id="market" class="screen active">
+ <div class="section-head"><h2>Валютный рынок</h2><span class="muted">20 инструментов</span></div>
+ <div id="pairs" class="pair-strip"></div>
+ <div class="market-layout">
+  <div class="panel">
+   <div class="quote-head"><div><div class="muted">Выбранная пара</div><h2 id="symbol">EUR/USD</h2></div><div class="price" id="current-price">1.08500</div></div>
+   <div id="chart" class="chart"></div>
+   <div class="metrics"><div class="metric"><label>НАПРАВЛЕНИЕ</label><b id="direction">ОЖИДАНИЕ</b></div><div class="metric"><label>STOP LOSS</label><b id="sl">—</b></div><div class="metric"><label>TAKE PROFIT</label><b id="tp">—</b></div></div>
+  </div>
+  <div class="panel">
+   <div class="section-head"><h2>Активная стратегия</h2><span class="muted">5M</span></div>
+   <div class="muted">Выбери стратегию для виртуального наблюдения за сигналами по всем 20 парам.</div>
+   <select id="strategy-select" class="select"></select>
+   <button class="btn" id="toggle-scan" onclick="toggleScan()">▶ Включить стратегию</button>
+   <div class="note">Сделки виртуальные. Цены и движение на этом этапе демонстрационные, не котировки брокера. Ордеры в Capital.com не отправляются.</div>
+  </div>
+ </div>
+</section>
+<section id="strategies" class="screen">
+ <div class="section-head"><h2>Торговые стратегии</h2><span class="muted">20 вариантов</span></div>
+ <div class="panel" id="strategy-list"></div>
+</section>
+<section id="journal" class="screen">
+ <div class="section-head"><h2>Журнал сделок</h2><span class="muted">виртуальный счёт</span></div>
+ <div class="stats">
+  <div class="stat"><label>ВСЕГО СДЕЛОК</label><b id="stat-total">0</b></div>
+  <div class="stat"><label>ПРИБЫЛЬНЫЕ</label><b class="green" id="stat-wins">0</b></div>
+  <div class="stat"><label>УБЫТОЧНЫЕ</label><b class="red" id="stat-losses">0</b></div>
+  <div class="stat"><label>WIN RATE</label><b id="stat-rate">0%</b></div>
+ </div>
+ <div class="section-head"><h2>История операций</h2><span class="muted" id="journal-count">0 записей</span></div>
+ <div id="journal-list"></div>
+</section>
+<section id="test" class="screen">
+ <div class="section-head"><h2>Сравнение стратегий</h2></div>
+ <div class="panel"><div class="muted">Сравнение на искусственно созданной истории. Результат не является прогнозом будущей доходности.</div><button class="btn" style="margin-top:14px" onclick="runCompare()" id="compare-btn">Запустить тест 20 стратегий</button></div>
+ <div id="compare-results" style="margin-top:12px"></div>
+</section>
+</main>
+<nav class="nav">
+ <button class="active" onclick="tab('market',this)"><span>⌁</span>Рынок</button>
+ <button onclick="tab('strategies',this)"><span>◈</span>Стратегии</button>
+ <button onclick="tab('journal',this)"><span>▤</span>Журнал</button>
+ <button onclick="tab('test',this)"><span>▥</span>Тест</button>
+</nav>
 <script>
-const PAIRS = ["EURUSD","GBPUSD","USDJPY","USDCHF","AUDUSD","USDCAD","NZDUSD","EURGBP","EURJPY","EURCHF","GBPJPY","GBPCHF","AUDJPY","AUDCAD","AUDNZD","CADJPY","CHFJPY","NZDJPY","EURAUD","EURCAD"];
-const BASE_PRICES = {"EURUSD":1.08642,"GBPUSD":1.27846,"USDJPY":151.99234,"USDCHF":0.88093,"AUDUSD":0.65640,"USDCAD":1.37039,"NZDUSD":0.60120,"EURGBP":0.85420,"EURJPY":165.120,"EURCHF":0.95710,"GBPJPY":195.492,"GBPCHF":1.12412,"AUDJPY":102.101,"AUDCAD":0.89527,"AUDNZD":1.07459,"CADJPY":113.376,"CHFJPY":173.131,"NZDJPY":93.120,"EURAUD":1.64500,"EURCAD":1.47500};
-const STRATEGY_LIST = ["SMA 10/30", "SMA 20/50", "EMA 9/21", "EMA 12/26", "RSI 30/70", "RSI 50 cross", "BB Reversal", "BB Breakout", "MACD Cross", "MACD Zero", "Stoch 20/80", "Stoch 50", "Triple EMA", "Donchian 20", "Donchian 50", "Momentum 10", "SMA Slope", "EMA Slope", "Price vs SMA50", "Price vs EMA20"];
-
-let currentPair = "EURUSD";
-let prices = Object.assign({}, BASE_PRICES);
-let activeStrategy = localStorage.getItem("activeStrategy") || "SMA 10/30";
-let chart, candleSeries;
-
-function fmt(v) { return v.toFixed(v > 100 ? 3 : 5); }
-function switchTab(tabName, el) {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById('screen-' + tabName).classList.add('active');
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    if(el) el.classList.add('active');
-    window.scrollTo(0, 0);
-}
-
-// --- Логика Графика ---
-function initChart() {
-    const container = document.getElementById('chart-container');
-    if (!container || typeof LightweightCharts === 'undefined') return;
-    chart = LightweightCharts.createChart(container, {
-        layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
-        grid: { vertLines: { color: '#2a2e39' }, horzLines: { color: '#2a2e39' } },
-        crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-        rightPriceScale: { borderColor: '#2a2e39' },
-        timeScale: { borderColor: '#2a2e39', timeVisible: true },
-        handleScroll: false, handleScale: false,
-    });
-    candleSeries = chart.addCandlestickSeries({ upColor: '#089981', downColor: '#f23645', borderVisible: false, wickUpColor: '#089981', wickDownColor: '#f23645' });
-}
-
-function generateCandles(basePrice, count = 100) {
-    let candles = [], p = basePrice, time = Math.floor(Date.now() / 1000) - (count * 60);
-    for (let i = 0; i < count; i++) {
-        let open = p, close = p + (Math.random() - 0.5) * p * 0.002;
-        let high = Math.max(open, close) + Math.random() * p * 0.001;
-        let low = Math.min(open, close) - Math.random() * p * 0.001;
-        candles.push({ time: time + (i * 60), open, high, low, close });
-        p = close;
-    }
-    return candles;
-}
-
-function updateHeader(sym, price) {
-    document.getElementById('header-symbol').textContent = sym.slice(0,3) + "/" + sym.slice(3);
-    document.getElementById('header-entry').textContent = fmt(price);
-    document.getElementById('header-sl').textContent = fmt(price * 0.995);
-    document.getElementById('header-tp').textContent = fmt(price * 1.010);
-    const change = (Math.random() * 2 - 1).toFixed(2);
-    const changeEl = document.getElementById('header-change');
-    changeEl.textContent = (change > 0 ? "+" : "") + change + "%";
-    changeEl.className = "pair-change " + (change > 0 ? "up" : "down");
-}
-
-// --- Вкладка Стратегии ---
-function renderStrategies() {
-    const container = document.getElementById('strategies-container');
-    container.innerHTML = "";
-    STRATEGY_LIST.forEach(name => {
-        const div = document.createElement('div');
-        div.className = "strategy-item";
-        const isActive = name === activeStrategy;
-        div.innerHTML = `
-            <div class="strategy-name">${name}</div>
-            <button class="btn-apply ${isActive ? 'active' : ''}" onclick="applyStrategy('${name}')">
-                ${isActive ? 'Активна' : 'Применить'}
-            </button>
-        `;
-        container.appendChild(div);
-    });
-    document.getElementById('active-strat-text').textContent = activeStrategy;
-}
-
-function applyStrategy(name) {
-    activeStrategy = name;
-    localStorage.setItem("activeStrategy", name);
-    renderStrategies();
-    switchTab('market', document.querySelector('.nav-item')); // Перекидываем на рынок
-}
-
-// --- Вкладка Тест ---
-async function runCompare() {
-    const btn = document.getElementById("btn-run-compare");
-    const loading = document.getElementById("loading");
-    const results = document.getElementById("compare-results");
-    
-    btn.disabled = true; loading.style.display = "block"; results.innerHTML = "";
-    
-    try {
-        const res = await fetch('/api/strategies/compare');
-        const data = await res.json();
-        
-        if (data.error) {
-            alert("Ошибка сервера: " + data.error);
-            return;
-        }
-        if (!Array.isArray(data)) {
-            alert("Сервер вернул неверный формат данных. Убедитесь, что main.py обновлен.");
-            return;
-        }
-
-        let html = "";
-        data.forEach((s, idx) => {
-            const pnlColor = s.pnl >= 0 ? "#089981" : "#f23645";
-            const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : "";
-            const isAct = s.name === activeStrategy;
-            
-            html += `
-                <div class="result-row ${idx === 0 ? 'top1' : ''}">
-                    <div class="res-left">
-                        <div class="res-title">${medal} ${s.name}</div>
-                        <div class="res-stats">${s.trades} сделок · WR ${s.winrate}%</div>
-                    </div>
-                    <div class="res-right">
-                        <div class="res-pnl" style="color:${pnlColor}">${s.pnl > 0 ? '+' : ''}${s.pnl}R</div>
-                        <button class="btn-apply ${isAct ? 'active' : ''}" onclick="applyStrategy('${s.name}')">
-                            ${isAct ? 'Активна' : 'Выбрать'}
-                        </button>
-                    </div>
-                </div>`;
-        });
-        results.innerHTML = html;
-    } catch (e) {
-        alert("Ошибка при тестировании: " + e.message);
-    } finally {
-        btn.disabled = false; loading.style.display = "none";
-    }
-}
-
-// Инициализация
-window.onload = () => {
-    initChart();
-    updateHeader("EURUSD", prices["EURUSD"]);
-    if (candleSeries) { candleSeries.setData(generateCandles(prices["EURUSD"])); chart.timeScale().fitContent(); }
-    renderStrategies();
-    
-    setInterval(() => {
-        PAIRS.forEach(sym => { prices[sym] += (Math.random() - 0.5) * prices[sym] * 0.0002; });
-        updateHeader(currentPair, prices[currentPair]);
-    }, 1000);
-};
+const PAIRS=["EURUSD","GBPUSD","USDJPY","USDCHF","AUDUSD","USDCAD","NZDUSD","EURGBP","EURJPY","EURCHF","GBPJPY","GBPCHF","AUDJPY","AUDCAD","AUDNZD","CADJPY","CHFJPY","NZDJPY","EURAUD","EURCAD"];
+const BASE={EURUSD:1.085,GBPUSD:1.27,USDJPY:155,USDCHF:.89,AUDUSD:.66,USDCAD:1.36,NZDUSD:.61,EURGBP:.855,EURJPY:168,EURCHF:.965,GBPJPY:196.5,GBPCHF:1.13,AUDJPY:102.5,AUDCAD:.9,AUDNZD:1.08,CADJPY:114,CHFJPY:174,NZDJPY:94.5,EURAUD:1.645,EURCAD:1.475};
+let prices={...BASE}, selected="EURUSD", activeStrategy="EMA 9/21", scanning=false, chart, series, candles={}, scanTimer=null;
+const $=id=>document.getElementById(id);
+function fmt(p){return p>100?p.toFixed(3):p.toFixed(5)}
+function label(s){return s.slice(0,3)+"/"+s.slice(3)}
+function tab(name,el){document.querySelectorAll(".screen").forEach(x=>x.classList.remove("active"));$(name).classList.add("active");document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));el.classList.add("active");if(name==="journal")loadJournal()}
+function renderPairs(){ $("pairs").innerHTML=PAIRS.map(p=>`<button class="pair ${p===selected?'active':''}" onclick="choosePair('${p}')"><strong><i class="dot"></i>${label(p)}</strong><span>${fmt(prices[p])}</span></button>`).join("")}
+function choosePair(p){selected=p;renderPairs();$("symbol").textContent=label(p);$("current-price").textContent=fmt(prices[p]);if(series){series.setData(candles[p]);chart.timeScale().fitContent()}}
+function initChart(){if(!window.LightweightCharts)return;chart=LightweightCharts.createChart($("chart"),{width:$("chart").clientWidth,height:230,layout:{background:{color:"#111c2e"},textColor:"#8494ad"},grid:{vertLines:{color:"#1c2b41"},horzLines:{color:"#1c2b41"}},rightPriceScale:{borderColor:"#24334b"},timeScale:{borderColor:"#24334b",timeVisible:true},handleScroll:false,handleScale:false});series=chart.addCandlestickSeries({upColor:"#20c997",downColor:"#ff657a",borderVisible:false,wickUpColor:"#20c997",wickDownColor:"#ff657a"});for(const p of PAIRS)candles[p]=makeCandles(prices[p]);series.setData(candles[selected]);chart.timeScale().fitContent();window.addEventListener("resize",()=>chart.applyOptions({width:$("chart").clientWidth}))}
+function makeCandles(base){let arr=[],v=base,t=Math.floor(Date.now()/1000)-100*300;for(let i=0;i<100;i++){let o=v,c=o+(Math.random()-.5)*o*.0008,h=Math.max(o,c)+Math.random()*o*.0003,l=Math.min(o,c)-Math.random()*o*.0003;arr.push({time:t+i*300,open:o,high:h,low:l,close:c});v=c}return arr}
+async function loadStrategies(){let names;try{names=await(await fetch("/api/strategies")).json()}catch{names=["SMA 10/30","SMA 20/50","EMA 9/21","EMA 12/26","RSI 30/70","RSI 50 cross","BB Reversal","BB Breakout","MACD Cross","MACD Zero","Stoch 20/80","Stoch 50","Triple EMA","Donchian 20","Donchian 50","Momentum 10","SMA Slope","EMA Slope","Price vs SMA50","Price vs EMA20"]} $("strategy-select").innerHTML=names.map(n=>`<option>${n}</option>`).join("");$("strategy-select").value=activeStrategy;$("strategy-select").onchange=e=>{activeStrategy=e.target.value;renderStrategyList()};renderStrategyList()}
+function renderStrategyList(){let opts=[...$("strategy-select").options].map(o=>o.value);$("strategy-list").innerHTML=opts.map(n=>`<div class="strategy-card"><strong>${n}</strong><button class="${n===activeStrategy?'active':''}" onclick="setStrategy('${n}')">${n===activeStrategy?'Выбрана':'Выбрать'}</button></div>`).join("")}
+function setStrategy(n){activeStrategy=n;$("strategy-select").value=n;renderStrategyList()}
+function toggleScan(){scanning=!scanning;$("toggle-scan").textContent=scanning?"Ⅱ Остановить стратегию":"▶ Включить стратегию";$("toggle-scan").classList.toggle("secondary",scanning);if(scanning){scanOnce();scanTimer=setInterval(scanOnce,30000)}else{clearInterval(scanTimer);scanTimer=null}}
+async function scanOnce(){try{let r=await fetch("/api/demo/scan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({strategy:activeStrategy,prices})});let d=await r.json();if(d.opened?.length)loadJournal()}catch(e){console.warn(e)}}
+async function tickTrades(){try{await fetch("/api/demo/tick",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prices})})}catch(e){}}
+function updateMarket(){for(const p of PAIRS){let prev=prices[p];prices[p]=prev+(Math.random()-.5)*prev*.00012;let c=candles[p],last=c[c.length-1];last.close=prices[p];last.high=Math.max(last.high,prices[p]);last.low=Math.min(last.low,prices[p]);if(Date.now()/1000-last.time>300){c.push({time:last.time+300,open:last.close,high:last.close,low:last.close,close:last.close});if(c.length>120)c.shift()}}$("current-price").textContent=fmt(prices[selected]);if(series)series.update(candles[selected][candles[selected].length-1]);renderPairs();tickTrades()}
+async function loadJournal(){try{let rows=await(await fetch("/api/journal")).json();let closed=rows.filter(x=>x.status==="CLOSED"),wins=closed.filter(x=>x.result==="TAKE_PROFIT").length,losses=closed.filter(x=>x.result==="STOP_LOSS").length;$("stat-total").textContent=rows.length;$("stat-wins").textContent=wins;$("stat-losses").textContent=losses;$("stat-rate").textContent=(closed.length?Math.round(wins/closed.length*100):0)+"%";$("journal-count").textContent=rows.length+" записей";$("journal-list").innerHTML=rows.length?rows.map(t=>{let cls=t.status==="OPEN"?"open":t.result==="TAKE_PROFIT"?"win":"loss",tag=t.status==="OPEN"?"В РАБОТЕ":t.result==="TAKE_PROFIT"?"TAKE PROFIT":"STOP LOSS",tagcls=t.status==="OPEN"?"open":t.result==="TAKE_PROFIT"?"tp":"sl";return `<article class="trade ${cls}"><div class="trade-top"><strong>${label(t.pair)} · <span class="${t.side==='BUY'?'green':'red'}">${t.side}</span></strong><span class="tag ${tagcls}">${tag}</span></div><div class="trade-grid"><div><label>ВХОД</label><b>${fmt(t.entry)}</b></div><div><label>STOP LOSS</label><b class="red">${fmt(t.stop_loss)}</b></div><div><label>TAKE PROFIT</label><b class="green">${fmt(t.take_profit)}</b></div></div><div class="trade-foot"><span>${t.strategy}</span><span>${t.status==='OPEN'?'Открыта':(t.pnl>0?'+':'')+t.pnl+'%'}</span></div></article>`}).join(""):'<div class="panel empty">Пока сделок нет. Включи стратегию на экране «Рынок».</div>'}catch(e){$("journal-list").innerHTML='<div class="empty">Не удалось загрузить журнал</div>'}}
+async function runCompare(){let b=$("compare-btn");b.disabled=true;b.textContent="Считаем...";try{let d=await(await fetch("/api/strategies/compare")).json();$("compare-results").innerHTML=d.map((x,i)=>`<div class="strategy-card panel" style="margin-bottom:7px"><strong>${i+1}. ${x.name}<small class="muted" style="display:block;margin-top:4px">${x.trades} сделок · WR ${x.winrate}%</small></strong><b class="${x.pnl>=0?'green':'red'}">${x.pnl}R</b></div>`).join("")}catch(e){$("compare-results").textContent="Ошибка теста"}finally{b.disabled=false;b.textContent="Запустить тест 20 стратегий"}}
+window.addEventListener("load",()=>{renderPairs();initChart();loadStrategies();loadJournal();setInterval(updateMarket,3000)});
 </script>
-</body>
-</html>
+</body></html>
