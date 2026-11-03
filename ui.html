@@ -8,6 +8,10 @@
 <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #131722; color: #d1d4dc; padding-bottom: 60px; }
+    .screen { display: none; }
+    .screen.active { display: block; }
+    
+    /* --- Экран Рынок --- */
     #chart-container { width: 100%; height: 300px; background: #131722; }
     .pair-header { padding: 16px; border-bottom: 1px solid #2a2e39; }
     .pair-title-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
@@ -19,44 +23,41 @@
     .level-value { font-size: 14px; font-weight: 600; }
     .level-value.sl { color: #f23645; }
     .level-value.tp { color: #089981; }
-    .backtest-box { background: #1e222d; border-radius: 8px; padding: 12px; margin-top: 12px; }
-    .stats-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
-    .stat-item { text-align: center; flex: 1; }
-    .stat-label { font-size: 10px; color: #787b86; text-transform: uppercase; }
-    .stat-val { font-size: 16px; font-weight: 700; margin-top: 2px; color: #d1d4dc; }
-    .btn-backtest { width: 100%; background: #2962ff; border: none; border-radius: 6px; padding: 10px; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
-    .btn-backtest:active { background: #1e4bd8; }
-    .btn-backtest:disabled { opacity: 0.6; }
-    .pair-list { background: #131722; }
-    .list-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #2a2e39; cursor: pointer; }
-    .list-item.active { background: #1e222d; border-left: 3px solid #2962ff; }
-    .list-item-left { display: flex; flex-direction: column; }
-    .list-symbol { font-size: 15px; font-weight: 600; color: #fff; }
-    .list-signal { font-size: 11px; color: #787b86; margin-top: 2px; }
-    .list-item-right { text-align: right; display: flex; flex-direction: column; }
-    .list-price { font-size: 15px; font-weight: 500; }
-    .list-price-change { font-size: 12px; }
-    .up { color: #089981; } .down { color: #f23645; } .neutral { color: #787b86; }
-    .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; height: 60px; background: #1e222d; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #2a2e39; }
+    
+    /* Активная стратегия */
+    .active-strategy-box { background: #1e222d; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #2962ff; }
+    .as-label { font-size: 12px; color: #787b86; text-transform: uppercase; }
+    .as-name { font-size: 16px; font-weight: 700; color: #2962ff; }
+
+    /* --- Экран Стратегии --- */
+    .strategy-item { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid #2a2e39; }
+    .strategy-name { font-size: 15px; font-weight: 600; color: #fff; }
+    .btn-apply { background: #2a2e39; border: 1px solid #363a45; color: #d1d4dc; padding: 6px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .btn-apply.active { background: #2962ff; border-color: #2962ff; color: #fff; }
+
+    /* --- Экран Тест --- */
+    .test-header { padding: 16px; text-align: center; }
+    .btn-primary { width: 100%; background: #2962ff; border: none; border-radius: 6px; padding: 12px; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 16px; }
+    .btn-primary:disabled { opacity: 0.6; }
+    .result-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #2a2e39; }
+    .result-row.top1 { background: #1e222d; }
+    .res-left { display: flex; flex-direction: column; }
+    .res-title { font-size: 14px; font-weight: 700; color: #fff; }
+    .res-stats { font-size: 11px; color: #787b86; margin-top: 2px; }
+    .res-right { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 6px;}
+    .res-pnl { font-size: 15px; font-weight: 700; }
+
+    /* Нижнее меню */
+    .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; height: 60px; background: #1e222d; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #2a2e39; z-index: 100; }
     .nav-item { color: #787b86; font-size: 11px; text-align: center; display: flex; flex-direction: column; gap: 4px; cursor: pointer; }
     .nav-item.active { color: #2962ff; }
     .nav-icon { font-size: 20px; }
-    /* Test screen */
-    .test-header { padding: 16px; }
-    .test-title { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 8px; }
-    .test-desc { font-size: 12px; color: #787b86; margin-bottom: 16px; line-height: 1.5; }
-    .compare-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #2a2e39; }
-    .compare-row.top1 { background: #1e222d; }
-    .rank-badge { font-weight: 700; width: 32px; font-size: 14px; }
-    .strategy-name { color: #fff; font-weight: 600; font-size: 14px; }
-    .strategy-stats { color: #787b86; font-size: 11px; margin-top: 2px; }
-    .pnl-val { font-weight: 700; font-size: 16px; }
 </style>
 </head>
 <body>
 
-<!-- ============ SCREEN: MARKET ============ -->
-<div id="screen-market">
+<!-- ЭКРАН: РЫНОК -->
+<div id="screen-market" class="screen active">
     <div id="chart-container"></div>
     <div class="pair-header">
         <div class="pair-title-row">
@@ -68,60 +69,75 @@
             <div class="level-box"><div class="level-label">Стоп-лосс</div><div class="level-value sl" id="header-sl">1.08460</div></div>
             <div class="level-box"><div class="level-label">Тейк-профит</div><div class="level-value tp" id="header-tp">1.09007</div></div>
         </div>
-        <div class="backtest-box">
-            <div class="stats-row">
-                <div class="stat-item"><div class="stat-label">P&L (R)</div><div class="stat-val" id="stat-pnl">—</div></div>
-                <div class="stat-item"><div class="stat-label">Сделок</div><div class="stat-val" id="stat-trades">—</div></div>
-                <div class="stat-item"><div class="stat-label">Winrate</div><div class="stat-val" id="stat-winrate">—</div></div>
+        <div class="active-strategy-box">
+            <div>
+                <div class="as-label">Текущая стратегия</div>
+                <div class="as-name" id="active-strat-text">SMA 10/30</div>
             </div>
-            <button class="btn-backtest" onclick="runBacktest()" id="btn-run">▶ Бэктест SMA 10/30</button>
+            <div style="font-size:24px;">⚙️</div>
         </div>
     </div>
-    <div class="pair-list" id="pair-list"></div>
 </div>
 
-<!-- ============ SCREEN: TEST ============ -->
-<div id="screen-test" style="display: none;">
+<!-- ЭКРАН: СТРАТЕГИИ -->
+<div id="screen-strategies" class="screen">
+    <div style="padding: 16px; border-bottom: 1px solid #2a2e39;">
+        <h2 style="color:#fff; font-size:20px;">Выбор стратегии</h2>
+        <p style="color:#787b86; font-size:12px; margin-top:4px;">Выберите одну из 20 стратегий для активной торговли.</p>
+    </div>
+    <div id="strategies-container"></div>
+</div>
+
+<!-- ЭКРАН: ТЕСТ -->
+<div id="screen-test" class="screen">
     <div class="test-header">
-        <div class="test-title">🧪 Сравнение стратегий</div>
-        <div class="test-desc">20 стратегий тестируются на одинаковых исторических данных (500 свечей × 20 пар). Результат — честный рейтинг по прибыли.</div>
-        <button class="btn-backtest" onclick="runCompare()" id="btn-compare">▶ Сравнить 20 стратегий</button>
-        <div id="compare-loading" style="display:none; color:#eab308; margin-top:12px; font-size:13px; text-align:center;">⏳ Тестируем 20 стратегий...</div>
+        <h2 style="color:#fff; font-size:20px;">Сравнение стратегий</h2>
+        <p style="color:#787b86; font-size:12px; margin-top:8px;">Проверьте все 20 стратегий на истории и выберите лучшую.</p>
+        <button class="btn-primary" onclick="runCompare()" id="btn-run-compare">▶ Запустить тест</button>
+        <div id="loading" style="display:none; color:#eab308; margin-top:12px; font-size:13px;">⏳ Считаем историю...</div>
     </div>
     <div id="compare-results"></div>
 </div>
 
-<!-- ============ BOTTOM NAV ============ -->
+<!-- НИЖНЕЕ МЕНЮ -->
 <div class="bottom-nav">
-    <div class="nav-item active" onclick="showScreen('market')"><div class="nav-icon">📈</div>Рынок</div>
-    <div class="nav-item"><div class="nav-icon">⚙️</div>Стратегии</div>
-    <div class="nav-item" onclick="showScreen('test')"><div class="nav-icon">🧪</div>Тест</div>
-    <div class="nav-item"><div class="nav-icon">💼</div>Счёт</div>
+    <div class="nav-item active" onclick="switchTab('market', this)"><div class="nav-icon">📈</div>Рынок</div>
+    <div class="nav-item" onclick="switchTab('strategies', this)"><div class="nav-icon">⚙️</div>Стратегии</div>
+    <div class="nav-item" onclick="switchTab('test', this)"><div class="nav-icon">🧪</div>Тест</div>
 </div>
 
 <script>
 const PAIRS = ["EURUSD","GBPUSD","USDJPY","USDCHF","AUDUSD","USDCAD","NZDUSD","EURGBP","EURJPY","EURCHF","GBPJPY","GBPCHF","AUDJPY","AUDCAD","AUDNZD","CADJPY","CHFJPY","NZDJPY","EURAUD","EURCAD"];
 const BASE_PRICES = {"EURUSD":1.08642,"GBPUSD":1.27846,"USDJPY":151.99234,"USDCHF":0.88093,"AUDUSD":0.65640,"USDCAD":1.37039,"NZDUSD":0.60120,"EURGBP":0.85420,"EURJPY":165.120,"EURCHF":0.95710,"GBPJPY":195.492,"GBPCHF":1.12412,"AUDJPY":102.101,"AUDCAD":0.89527,"AUDNZD":1.07459,"CADJPY":113.376,"CHFJPY":173.131,"NZDJPY":93.120,"EURAUD":1.64500,"EURCAD":1.47500};
+const STRATEGY_LIST = ["SMA 10/30", "SMA 20/50", "EMA 9/21", "EMA 12/26", "RSI 30/70", "RSI 50 cross", "BB Reversal", "BB Breakout", "MACD Cross", "MACD Zero", "Stoch 20/80", "Stoch 50", "Triple EMA", "Donchian 20", "Donchian 50", "Momentum 10", "SMA Slope", "EMA Slope", "Price vs SMA50", "Price vs EMA20"];
+
 let currentPair = "EURUSD";
 let prices = Object.assign({}, BASE_PRICES);
+let activeStrategy = localStorage.getItem("activeStrategy") || "SMA 10/30";
 let chart, candleSeries;
 
 function fmt(v) { return v.toFixed(v > 100 ? 3 : 5); }
+function switchTab(tabName, el) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + tabName).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    if(el) el.classList.add('active');
+    window.scrollTo(0, 0);
+}
 
+// --- Логика Графика ---
 function initChart() {
     const container = document.getElementById('chart-container');
     if (!container || typeof LightweightCharts === 'undefined') return;
-    try {
-        chart = LightweightCharts.createChart(container, {
-            layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
-            grid: { vertLines: { color: '#2a2e39' }, horzLines: { color: '#2a2e39' } },
-            crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-            rightPriceScale: { borderColor: '#2a2e39' },
-            timeScale: { borderColor: '#2a2e39', timeVisible: true },
-            handleScroll: false, handleScale: false,
-        });
-        candleSeries = chart.addCandlestickSeries({ upColor: '#089981', downColor: '#f23645', borderVisible: false, wickUpColor: '#089981', wickDownColor: '#f23645' });
-    } catch(e) { console.error(e); }
+    chart = LightweightCharts.createChart(container, {
+        layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
+        grid: { vertLines: { color: '#2a2e39' }, horzLines: { color: '#2a2e39' } },
+        crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+        rightPriceScale: { borderColor: '#2a2e39' },
+        timeScale: { borderColor: '#2a2e39', timeVisible: true },
+        handleScroll: false, handleScale: false,
+    });
+    candleSeries = chart.addCandlestickSeries({ upColor: '#089981', downColor: '#f23645', borderVisible: false, wickUpColor: '#089981', wickDownColor: '#f23645' });
 }
 
 function generateCandles(basePrice, count = 100) {
@@ -147,99 +163,88 @@ function updateHeader(sym, price) {
     changeEl.className = "pair-change " + (change > 0 ? "up" : "down");
 }
 
-function renderList() {
-    const listEl = document.getElementById('pair-list');
-    if (!listEl) return;
-    listEl.innerHTML = "";
-    PAIRS.forEach(sym => {
-        const price = prices[sym];
-        const change = (Math.random() * 2 - 1).toFixed(2);
-        const isActive = sym === currentPair ? "active" : "";
-        const item = document.createElement('div');
-        item.className = `list-item ${isActive}`;
-        item.onclick = () => selectPair(sym);
-        item.innerHTML = `
-            <div class="list-item-left">
-                <div class="list-symbol">${sym.slice(0,3)}/${sym.slice(3)}</div>
-                <div class="list-signal">нет сигнала</div>
-            </div>
-            <div class="list-item-right">
-                <div class="list-price">${fmt(price)}</div>
-                <div class="list-price-change ${change > 0 ? 'up' : 'down'}">${change > 0 ? '+' : ''}${change}%</div>
-            </div>`;
-        listEl.appendChild(item);
+// --- Вкладка Стратегии ---
+function renderStrategies() {
+    const container = document.getElementById('strategies-container');
+    container.innerHTML = "";
+    STRATEGY_LIST.forEach(name => {
+        const div = document.createElement('div');
+        div.className = "strategy-item";
+        const isActive = name === activeStrategy;
+        div.innerHTML = `
+            <div class="strategy-name">${name}</div>
+            <button class="btn-apply ${isActive ? 'active' : ''}" onclick="applyStrategy('${name}')">
+                ${isActive ? 'Активна' : 'Применить'}
+            </button>
+        `;
+        container.appendChild(div);
     });
+    document.getElementById('active-strat-text').textContent = activeStrategy;
 }
 
-function selectPair(sym) {
-    currentPair = sym;
-    const price = prices[sym];
-    updateHeader(sym, price);
-    if (candleSeries) { candleSeries.setData(generateCandles(price)); chart.timeScale().fitContent(); }
-    renderList();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+function applyStrategy(name) {
+    activeStrategy = name;
+    localStorage.setItem("activeStrategy", name);
+    renderStrategies();
+    switchTab('market', document.querySelector('.nav-item')); // Перекидываем на рынок
 }
 
-async function runBacktest() {
-    const btn = document.getElementById("btn-run");
-    btn.disabled = true; btn.textContent = "⏳ Считаем...";
-    try {
-        const res = await fetch('/api/backtest');
-        const data = await res.json();
-        const pnlEl = document.getElementById("stat-pnl");
-        pnlEl.textContent = (data.pnl > 0 ? "+" : "") + data.pnl + "R";
-        pnlEl.style.color = data.pnl >= 0 ? "#089981" : "#f23645";
-        document.getElementById("stat-trades").textContent = data.trades;
-        const wrEl = document.getElementById("stat-winrate");
-        wrEl.textContent = data.winrate + "%";
-        wrEl.style.color = data.winrate >= 50 ? "#089981" : "#eab308";
-    } catch (e) { alert("Ошибка: " + e.message); }
-    finally { btn.disabled = false; btn.textContent = "▶ Бэктест SMA 10/30"; }
-}
-
+// --- Вкладка Тест ---
 async function runCompare() {
-    const btn = document.getElementById("btn-compare");
-    const loading = document.getElementById("compare-loading");
+    const btn = document.getElementById("btn-run-compare");
+    const loading = document.getElementById("loading");
     const results = document.getElementById("compare-results");
+    
     btn.disabled = true; loading.style.display = "block"; results.innerHTML = "";
+    
     try {
         const res = await fetch('/api/strategies/compare');
         const data = await res.json();
+        
+        if (data.error) {
+            alert("Ошибка сервера: " + data.error);
+            return;
+        }
+        if (!Array.isArray(data)) {
+            alert("Сервер вернул неверный формат данных. Убедитесь, что main.py обновлен.");
+            return;
+        }
+
         let html = "";
         data.forEach((s, idx) => {
             const pnlColor = s.pnl >= 0 ? "#089981" : "#f23645";
-            const rankColor = idx === 0 ? "#ffd700" : idx === 1 ? "#c0c0c0" : idx === 2 ? "#cd7f32" : "#787b86";
             const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : "";
+            const isAct = s.name === activeStrategy;
+            
             html += `
-                <div class="compare-row ${idx === 0 ? 'top1' : ''}">
-                    <div style="display:flex; align-items:center; gap:12px;">
-                        <div class="rank-badge" style="color:${rankColor}">${medal} #${s.rank}</div>
-                        <div>
-                            <div class="strategy-name">${s.name}</div>
-                            <div class="strategy-stats">${s.trades} сделок · WR ${s.winrate}%</div>
-                        </div>
+                <div class="result-row ${idx === 0 ? 'top1' : ''}">
+                    <div class="res-left">
+                        <div class="res-title">${medal} ${s.name}</div>
+                        <div class="res-stats">${s.trades} сделок · WR ${s.winrate}%</div>
                     </div>
-                    <div class="pnl-val" style="color:${pnlColor}">${s.pnl > 0 ? '+' : ''}${s.pnl}R</div>
+                    <div class="res-right">
+                        <div class="res-pnl" style="color:${pnlColor}">${s.pnl > 0 ? '+' : ''}${s.pnl}R</div>
+                        <button class="btn-apply ${isAct ? 'active' : ''}" onclick="applyStrategy('${s.name}')">
+                            ${isAct ? 'Активна' : 'Выбрать'}
+                        </button>
+                    </div>
                 </div>`;
         });
         results.innerHTML = html;
-    } catch (e) { alert("Ошибка: " + e.message); }
-    finally { btn.disabled = false; loading.style.display = "none"; }
+    } catch (e) {
+        alert("Ошибка при тестировании: " + e.message);
+    } finally {
+        btn.disabled = false; loading.style.display = "none";
+    }
 }
 
-function showScreen(name) {
-    document.getElementById("screen-market").style.display = name === "market" ? "block" : "none";
-    document.getElementById("screen-test").style.display = name === "test" ? "block" : "none";
-    const navs = document.querySelectorAll('.nav-item');
-    navs.forEach(n => n.classList.remove('active'));
-    if (name === 'market') navs[0].classList.add('active');
-    if (name === 'test') navs[2].classList.add('active');
-    window.scrollTo({ top: 0 });
-}
-
+// Инициализация
 window.onload = () => {
     initChart();
-    selectPair("EURUSD");
+    updateHeader("EURUSD", prices["EURUSD"]);
+    if (candleSeries) { candleSeries.setData(generateCandles(prices["EURUSD"])); chart.timeScale().fitContent(); }
+    renderStrategies();
+    
     setInterval(() => {
         PAIRS.forEach(sym => { prices[sym] += (Math.random() - 0.5) * prices[sym] * 0.0002; });
         updateHeader(currentPair, prices[currentPair]);
