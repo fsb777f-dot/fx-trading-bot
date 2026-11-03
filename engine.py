@@ -21,7 +21,6 @@ PRICES = {
 }
 
 def generate_history(start_price, length=1000):
-    """Генерирует историю цен (свечи)."""
     history = []
     p = start_price
     for _ in range(length):
@@ -30,24 +29,28 @@ def generate_history(start_price, length=1000):
     return history
 
 def sma(data, window):
-    """Скользящая средняя."""
+    """Скользящая средняя (возвращает список той же длины, с None в начале)."""
     if len(data) < window:
-        return []
-    return [sum(data[i-window:i])/window for i in range(window, len(data)+1)]
+        return [None] * len(data)
+    result = [None] * (window - 1)
+    for i in range(window - 1, len(data)):
+        result.append(sum(data[i-window+1:i+1]) / window)
+    return result
 
 def backtest_pair(start_price):
-    """Тестирует стратегию на одной паре."""
     history = generate_history(start_price, 1000)
     fast = sma(history, 10)
     slow = sma(history, 30)
     
-    offset = len(history) - len(fast)
     trades = []
     position = None
     
-    for i in range(1, len(fast)):
-        idx = offset + i
-        current_price = history[idx]
+    for i in range(1, len(history)):
+        # Пропускаем, пока не набралось достаточно данных для средних
+        if fast[i] is None or slow[i] is None or fast[i-1] is None or slow[i-1] is None:
+            continue
+            
+        current_price = history[i]
         
         if position:
             if position["type"] == "BUY":
@@ -66,8 +69,10 @@ def backtest_pair(start_price):
                     position = None
 
         if not position:
+            # Пересечение снизу вверх -> BUY
             if fast[i] > slow[i] and fast[i-1] <= slow[i-1]:
                 position = {"type": "BUY", "sl": current_price * 0.995, "tp": current_price * 1.010}
+            # Пересечение сверху вниз -> SELL
             elif fast[i] < slow[i] and fast[i-1] >= slow[i-1]:
                 position = {"type": "SELL", "sl": current_price * 1.005, "tp": current_price * 0.990}
                 
@@ -77,7 +82,6 @@ def backtest_pair(start_price):
     return trades
 
 def run_full_backtest():
-    """Запускает бэктест по всем 20 парам."""
     total_pnl = 0
     total_trades = 0
     wins = 0
