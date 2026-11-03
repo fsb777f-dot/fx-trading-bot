@@ -13,17 +13,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
 header{padding:17px 16px 13px;background:linear-gradient(135deg,#14233b,#0e1728);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
 .brand{display:flex;justify-content:space-between;align-items:center}.brand h1{font-size:20px;letter-spacing:.2px}.brand small{color:var(--muted);font-size:10px;display:block;margin-top:3px;letter-spacing:1.3px}
 .mode{font-size:10px;color:var(--gold);border:1px solid #725b2c;background:#332a19;padding:6px 9px;border-radius:20px;font-weight:800}
-main{padding:14px;max-width:900px;margin:auto}.screen{display:none}.screen.active{display:block}
+main{padding:10px 11px 14px;max-width:900px;margin:auto}.screen{display:none}.screen.active{display:block}
 .section-head{display:flex;justify-content:space-between;align-items:center;margin:3px 0 12px}.section-head h2{font-size:17px}.muted{color:var(--muted);font-size:12px}
-.market-layout{display:grid;grid-template-columns:1fr;gap:12px}
+.market-layout{display:grid;grid-template-columns:1fr;gap:12px}.pairs-heading{display:flex;justify-content:space-between;align-items:center;margin:15px 2px 8px}.pairs-heading strong{font-size:14px}.chart-panel{padding:11px 10px 10px}.strategy-panel{margin-top:12px}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:14px;box-shadow:0 8px 22px #0002}
-.pair-strip{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px}
-.pair{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:10px;text-align:left;color:var(--text);min-width:0}
+.pair-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:12px}
+.pair{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:7px 5px;text-align:center;color:var(--text);min-width:0;min-height:48px}
 .pair.active{border-color:var(--blue);background:#172947;box-shadow:inset 0 0 0 1px #5b8cff33}
-.pair strong{font-size:13px;display:block}.pair span{font-size:11px;color:var(--muted);display:block;margin-top:5px;font-variant-numeric:tabular-nums}
+.pair strong{font-size:10px;display:block;white-space:nowrap}.pair span{font-size:9px;color:var(--muted);display:block;margin-top:3px;font-variant-numeric:tabular-nums}
 .pair .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-right:5px}
-.quote-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.quote-head h2{font-size:22px}.price{font-size:21px;font-weight:750;font-variant-numeric:tabular-nums}.chart{height:230px;width:100%}
-.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}.metric{background:var(--panel2);padding:10px;border-radius:10px}.metric label{display:block;color:var(--muted);font-size:10px;margin-bottom:6px}.metric b{font-size:12px;font-variant-numeric:tabular-nums}.green{color:var(--green)!important}.red{color:var(--red)!important}.gold{color:var(--gold)!important}
+.quote-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.quote-head h2{font-size:22px}.price{font-size:21px;font-weight:750;font-variant-numeric:tabular-nums}.chart{height:255px;width:100%}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}.metric{background:var(--panel2);padding:8px 7px;border-radius:10px}.metric label{display:block;color:var(--muted);font-size:9px;margin-bottom:5px}.metric b{font-size:11px;font-variant-numeric:tabular-nums}.green{color:var(--green)!important}.red{color:var(--red)!important}.gold{color:var(--gold)!important}
 .select{width:100%;padding:12px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:10px;margin:9px 0 12px;font-size:14px}
 .btn{border:0;border-radius:10px;padding:12px 15px;background:var(--blue);color:white;font-weight:750;font-size:13px;width:100%}.btn.secondary{background:var(--panel2);border:1px solid var(--line);color:var(--text)}
 .strategy-card{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:13px 0;border-bottom:1px solid var(--line)}.strategy-card:last-child{border:0}.strategy-card strong{font-size:13px}.strategy-card button{background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:8px 10px;border-radius:8px;font-size:11px}.strategy-card button.active{background:#183b32;color:var(--green);border-color:#246b56}
@@ -42,26 +42,19 @@ main{padding:14px;max-width:900px;margin:auto}.screen{display:none}.screen.activ
 <header><div class="brand"><div><h1>FX TERMINAL</h1><small>SMART SCALPING · 5 MIN</small></div><div class="mode">● DEMO SIMULATION</div></div></header>
 <main>
 <section id="market" class="screen active">
- <div class="section-head"><h2>Валютный рынок</h2><span class="muted">20 инструментов</span></div>
- <div id="pairs" class="pair-strip"></div>
- <div class="market-layout">
-  <div class="panel">
-   <div class="quote-head"><div><div class="muted">Выбранная пара</div><h2 id="symbol">EUR/USD</h2></div><div class="price" id="current-price">1.08500</div></div>
-   <div id="chart" class="chart"></div>
-   <div class="metrics"><div class="metric"><label>НАПРАВЛЕНИЕ</label><b id="direction">ОЖИДАНИЕ</b></div><div class="metric"><label>STOP LOSS</label><b id="sl">—</b></div><div class="metric"><label>TAKE PROFIT</label><b id="tp">—</b></div></div>
-  </div>
-  <div class="panel">
-   <div class="section-head"><h2>Активная стратегия</h2><span class="muted">5M</span></div>
-   <div class="muted">Выбери стратегию для виртуального наблюдения за сигналами по всем 20 парам.</div>
-   <select id="strategy-select" class="select"></select>
-   <button class="btn" id="toggle-scan" onclick="toggleScan()">▶ Включить стратегию</button>
-   <div class="note">Сделки виртуальные. Цены и движение на этом этапе демонстрационные, не котировки брокера. Ордеры в Capital.com не отправляются.</div>
-  </div>
+ <div class="panel chart-panel">
+  <div class="quote-head"><div><div class="muted">ГРАФИК · 5 МИНУТ</div><h2 id="symbol">EUR/USD</h2></div><div class="price" id="current-price">1.08500</div></div>
+  <div id="chart" class="chart"></div>
+  <div class="metrics"><div class="metric"><label>СИГНАЛ</label><b id="direction">ОЖИДАНИЕ</b></div><div class="metric"><label>STOP LOSS</label><b id="sl">—</b></div><div class="metric"><label>TAKE PROFIT</label><b id="tp">—</b></div></div>
  </div>
-</section>
-<section id="strategies" class="screen">
- <div class="section-head"><h2>Торговые стратегии</h2><span class="muted">20 вариантов</span></div>
- <div class="panel" id="strategy-list"></div>
+ <div class="pairs-heading"><strong>Валютные пары</strong><span class="muted">20 инструментов · нажми для выбора</span></div>
+ <div id="pairs" class="pair-strip"></div>
+ <div class="panel strategy-panel">
+  <div class="section-head"><h2>Активная стратегия</h2><span class="muted">5M</span></div>
+  <select id="strategy-select" class="select"></select>
+  <button class="btn" id="toggle-scan" onclick="toggleScan()">▶ Включить стратегию</button>
+  <div class="note">Сделки виртуальные. Цены и движение пока демонстрационные, не котировки брокера. Ордеры в Capital.com не отправляются.</div>
+ </div>
 </section>
 <section id="journal" class="screen">
  <div class="section-head"><h2>Журнал сделок</h2><span class="muted">виртуальный счёт</span></div>
@@ -75,14 +68,17 @@ main{padding:14px;max-width:900px;margin:auto}.screen{display:none}.screen.activ
  <div id="journal-list"></div>
 </section>
 <section id="test" class="screen">
- <div class="section-head"><h2>Сравнение стратегий</h2></div>
- <div class="panel"><div class="muted">Сравнение на искусственно созданной истории. Результат не является прогнозом будущей доходности.</div><button class="btn" style="margin-top:14px" onclick="runCompare()" id="compare-btn">Запустить тест 20 стратегий</button></div>
+ <div class="section-head"><h2>Стратегии и тестирование</h2><span class="muted">20 вариантов</span></div>
+ <div class="panel">
+  <div class="muted">Выбери стратегию для рынка. Ниже можно запустить сравнительный тест всех стратегий на демонстрационной истории.</div>
+  <div id="strategy-list" style="margin-top:10px"></div>
+  <button class="btn" style="margin-top:14px" onclick="runCompare()" id="compare-btn">▶ Тест всех 20 стратегий</button>
+ </div>
  <div id="compare-results" style="margin-top:12px"></div>
 </section>
 </main>
 <nav class="nav">
  <button class="active" onclick="tab('market',this)"><span>⌁</span>Рынок</button>
- <button onclick="tab('strategies',this)"><span>◈</span>Стратегии</button>
  <button onclick="tab('journal',this)"><span>▤</span>Журнал</button>
  <button onclick="tab('test',this)"><span>▥</span>Тест</button>
 </nav>
@@ -96,7 +92,7 @@ function label(s){return s.slice(0,3)+"/"+s.slice(3)}
 function tab(name,el){document.querySelectorAll(".screen").forEach(x=>x.classList.remove("active"));$(name).classList.add("active");document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));el.classList.add("active");if(name==="journal")loadJournal()}
 function renderPairs(){ $("pairs").innerHTML=PAIRS.map(p=>`<button class="pair ${p===selected?'active':''}" onclick="choosePair('${p}')"><strong><i class="dot"></i>${label(p)}</strong><span>${fmt(prices[p])}</span></button>`).join("")}
 function choosePair(p){selected=p;renderPairs();$("symbol").textContent=label(p);$("current-price").textContent=fmt(prices[p]);if(series){series.setData(candles[p]);chart.timeScale().fitContent()}}
-function initChart(){if(!window.LightweightCharts)return;chart=LightweightCharts.createChart($("chart"),{width:$("chart").clientWidth,height:230,layout:{background:{color:"#111c2e"},textColor:"#8494ad"},grid:{vertLines:{color:"#1c2b41"},horzLines:{color:"#1c2b41"}},rightPriceScale:{borderColor:"#24334b"},timeScale:{borderColor:"#24334b",timeVisible:true},handleScroll:false,handleScale:false});series=chart.addCandlestickSeries({upColor:"#20c997",downColor:"#ff657a",borderVisible:false,wickUpColor:"#20c997",wickDownColor:"#ff657a"});for(const p of PAIRS)candles[p]=makeCandles(prices[p]);series.setData(candles[selected]);chart.timeScale().fitContent();window.addEventListener("resize",()=>chart.applyOptions({width:$("chart").clientWidth}))}
+function initChart(){if(!window.LightweightCharts)return;chart=LightweightCharts.createChart($("chart"),{width:$("chart").clientWidth,height:255,layout:{background:{color:"#111c2e"},textColor:"#8494ad"},grid:{vertLines:{color:"#1c2b41"},horzLines:{color:"#1c2b41"}},rightPriceScale:{borderColor:"#24334b"},timeScale:{borderColor:"#24334b",timeVisible:true},handleScroll:false,handleScale:false});series=chart.addCandlestickSeries({upColor:"#20c997",downColor:"#ff657a",borderVisible:false,wickUpColor:"#20c997",wickDownColor:"#ff657a"});for(const p of PAIRS)candles[p]=makeCandles(prices[p]);series.setData(candles[selected]);chart.timeScale().fitContent();window.addEventListener("resize",()=>chart.applyOptions({width:$("chart").clientWidth}))}
 function makeCandles(base){let arr=[],v=base,t=Math.floor(Date.now()/1000)-100*300;for(let i=0;i<100;i++){let o=v,c=o+(Math.random()-.5)*o*.0008,h=Math.max(o,c)+Math.random()*o*.0003,l=Math.min(o,c)-Math.random()*o*.0003;arr.push({time:t+i*300,open:o,high:h,low:l,close:c});v=c}return arr}
 async function loadStrategies(){let names;try{names=await(await fetch("/api/strategies")).json()}catch{names=["SMA 10/30","SMA 20/50","EMA 9/21","EMA 12/26","RSI 30/70","RSI 50 cross","BB Reversal","BB Breakout","MACD Cross","MACD Zero","Stoch 20/80","Stoch 50","Triple EMA","Donchian 20","Donchian 50","Momentum 10","SMA Slope","EMA Slope","Price vs SMA50","Price vs EMA20"]} $("strategy-select").innerHTML=names.map(n=>`<option>${n}</option>`).join("");$("strategy-select").value=activeStrategy;$("strategy-select").onchange=e=>{activeStrategy=e.target.value;renderStrategyList()};renderStrategyList()}
 function renderStrategyList(){let opts=[...$("strategy-select").options].map(o=>o.value);$("strategy-list").innerHTML=opts.map(n=>`<div class="strategy-card"><strong>${n}</strong><button class="${n===activeStrategy?'active':''}" onclick="setStrategy('${n}')">${n===activeStrategy?'Выбрана':'Выбрать'}</button></div>`).join("")}
