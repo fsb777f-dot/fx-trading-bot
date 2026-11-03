@@ -4,97 +4,104 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>FX Trading Bot</title>
-<!-- Зафиксирована стабильная версия 4.1.3 -->
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-    body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        background: #131722; color: #d1d4dc; padding-bottom: 60px;
-    }
-    
-    #chart-container { width: 100%; height: 320px; background: #131722; }
-    
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #131722; color: #d1d4dc; padding-bottom: 60px; }
+    #chart-container { width: 100%; height: 300px; background: #131722; }
     .pair-header { padding: 16px; border-bottom: 1px solid #2a2e39; }
     .pair-title-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
     .pair-title { font-size: 22px; font-weight: 700; color: #fff; }
     .pair-change { font-size: 14px; font-weight: 600; color: #089981; }
-    
-    .levels-row { display: flex; gap: 8px; }
+    .levels-row { display: flex; gap: 8px; margin-bottom: 12px; }
     .level-box { flex: 1; background: #1e222d; border-radius: 6px; padding: 8px; }
     .level-label { font-size: 11px; color: #787b86; margin-bottom: 4px; }
     .level-value { font-size: 14px; font-weight: 600; }
     .level-value.sl { color: #f23645; }
     .level-value.tp { color: #089981; }
-    
-    .disclaimer { font-size: 11px; color: #787b86; margin-top: 12px; line-height: 1.4; }
-    
+    .backtest-box { background: #1e222d; border-radius: 8px; padding: 12px; margin-top: 12px; }
+    .stats-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
+    .stat-item { text-align: center; flex: 1; }
+    .stat-label { font-size: 10px; color: #787b86; text-transform: uppercase; }
+    .stat-val { font-size: 16px; font-weight: 700; margin-top: 2px; color: #d1d4dc; }
+    .btn-backtest { width: 100%; background: #2962ff; border: none; border-radius: 6px; padding: 10px; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .btn-backtest:active { background: #1e4bd8; }
+    .btn-backtest:disabled { opacity: 0.6; }
     .pair-list { background: #131722; }
-    .list-item { 
-        display: flex; justify-content: space-between; align-items: center; 
-        padding: 14px 16px; border-bottom: 1px solid #2a2e39; cursor: pointer;
-    }
-    .list-item.active { background: #1e222d; }
+    .list-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #2a2e39; cursor: pointer; }
+    .list-item.active { background: #1e222d; border-left: 3px solid #2962ff; }
     .list-item-left { display: flex; flex-direction: column; }
-    .list-symbol { font-size: 16px; font-weight: 600; color: #fff; }
+    .list-symbol { font-size: 15px; font-weight: 600; color: #fff; }
     .list-signal { font-size: 11px; color: #787b86; margin-top: 2px; }
     .list-item-right { text-align: right; display: flex; flex-direction: column; }
-    .list-price { font-size: 16px; font-weight: 500; }
+    .list-price { font-size: 15px; font-weight: 500; }
     .list-price-change { font-size: 12px; }
     .up { color: #089981; } .down { color: #f23645; } .neutral { color: #787b86; }
-    
-    .bottom-nav {
-        position: fixed; bottom: 0; left: 0; width: 100%; height: 60px;
-        background: #1e222d; display: flex; justify-content: space-around;
-        align-items: center; border-top: 1px solid #2a2e39;
-    }
-    .nav-item { color: #787b86; font-size: 11px; text-align: center; display: flex; flex-direction: column; gap: 4px; }
+    .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; height: 60px; background: #1e222d; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #2a2e39; }
+    .nav-item { color: #787b86; font-size: 11px; text-align: center; display: flex; flex-direction: column; gap: 4px; cursor: pointer; }
     .nav-item.active { color: #2962ff; }
     .nav-icon { font-size: 20px; }
+    /* Test screen */
+    .test-header { padding: 16px; }
+    .test-title { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+    .test-desc { font-size: 12px; color: #787b86; margin-bottom: 16px; line-height: 1.5; }
+    .compare-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #2a2e39; }
+    .compare-row.top1 { background: #1e222d; }
+    .rank-badge { font-weight: 700; width: 32px; font-size: 14px; }
+    .strategy-name { color: #fff; font-weight: 600; font-size: 14px; }
+    .strategy-stats { color: #787b86; font-size: 11px; margin-top: 2px; }
+    .pnl-val { font-weight: 700; font-size: 16px; }
 </style>
 </head>
 <body>
 
+<!-- ============ SCREEN: MARKET ============ -->
+<div id="screen-market">
     <div id="chart-container"></div>
-
     <div class="pair-header">
         <div class="pair-title-row">
             <div class="pair-title" id="header-symbol">EUR/USD</div>
             <div class="pair-change" id="header-change">+0.31%</div>
         </div>
         <div class="levels-row">
-            <div class="level-box">
-                <div class="level-label">Вход</div>
-                <div class="level-value" id="header-entry">1.08642</div>
-            </div>
-            <div class="level-box">
-                <div class="level-label">Стоп-лосс</div>
-                <div class="level-value sl" id="header-sl">1.08460</div>
-            </div>
-            <div class="level-box">
-                <div class="level-label">Тейк-профит</div>
-                <div class="level-value tp" id="header-tp">1.09007</div>
-            </div>
+            <div class="level-box"><div class="level-label">Вход</div><div class="level-value" id="header-entry">1.08642</div></div>
+            <div class="level-box"><div class="level-label">Стоп-лосс</div><div class="level-value sl" id="header-sl">1.08460</div></div>
+            <div class="level-box"><div class="level-label">Тейк-профит</div><div class="level-value tp" id="header-tp">1.09007</div></div>
         </div>
-        <div class="disclaimer">Уровни пока считаются заглушкой. Настоящие точки входа появятся после подключения стратегий.</div>
+        <div class="backtest-box">
+            <div class="stats-row">
+                <div class="stat-item"><div class="stat-label">P&L (R)</div><div class="stat-val" id="stat-pnl">—</div></div>
+                <div class="stat-item"><div class="stat-label">Сделок</div><div class="stat-val" id="stat-trades">—</div></div>
+                <div class="stat-item"><div class="stat-label">Winrate</div><div class="stat-val" id="stat-winrate">—</div></div>
+            </div>
+            <button class="btn-backtest" onclick="runBacktest()" id="btn-run">▶ Бэктест SMA 10/30</button>
+        </div>
     </div>
-
     <div class="pair-list" id="pair-list"></div>
+</div>
 
-    <div class="bottom-nav">
-        <div class="nav-item active"><div class="nav-icon">📈</div>Рынок</div>
-        <div class="nav-item"><div class="nav-icon">⚙️</div>Стратегии</div>
-        <div class="nav-item"><div class="nav-icon">🧪</div>Тест</div>
-        <div class="nav-item"><div class="nav-icon">💼</div>Счёт</div>
+<!-- ============ SCREEN: TEST ============ -->
+<div id="screen-test" style="display: none;">
+    <div class="test-header">
+        <div class="test-title">🧪 Сравнение стратегий</div>
+        <div class="test-desc">20 стратегий тестируются на одинаковых исторических данных (500 свечей × 20 пар). Результат — честный рейтинг по прибыли.</div>
+        <button class="btn-backtest" onclick="runCompare()" id="btn-compare">▶ Сравнить 20 стратегий</button>
+        <div id="compare-loading" style="display:none; color:#eab308; margin-top:12px; font-size:13px; text-align:center;">⏳ Тестируем 20 стратегий...</div>
     </div>
+    <div id="compare-results"></div>
+</div>
+
+<!-- ============ BOTTOM NAV ============ -->
+<div class="bottom-nav">
+    <div class="nav-item active" onclick="showScreen('market')"><div class="nav-icon">📈</div>Рынок</div>
+    <div class="nav-item"><div class="nav-icon">⚙️</div>Стратегии</div>
+    <div class="nav-item" onclick="showScreen('test')"><div class="nav-icon">🧪</div>Тест</div>
+    <div class="nav-item"><div class="nav-icon">💼</div>Счёт</div>
+</div>
 
 <script>
-const PAIRS = ["EURUSD", "GBPUSD", "USDJPY", "USDCHF", "AUDUSD", "USDCAD", "NZDUSD", "EURGBP", "EURJPY", "EURCHF"];
-const BASE_PRICES = {
-    "EURUSD": 1.08642, "GBPUSD": 1.27846, "USDJPY": 151.99234, "USDCHF": 0.88093,
-    "AUDUSD": 0.65640, "USDCAD": 1.37039, "NZDUSD": 0.60120, "EURGBP": 0.85420, "EURJPY": 165.120, "EURCHF": 0.95710
-};
-
+const PAIRS = ["EURUSD","GBPUSD","USDJPY","USDCHF","AUDUSD","USDCAD","NZDUSD","EURGBP","EURJPY","EURCHF","GBPJPY","GBPCHF","AUDJPY","AUDCAD","AUDNZD","CADJPY","CHFJPY","NZDJPY","EURAUD","EURCAD"];
+const BASE_PRICES = {"EURUSD":1.08642,"GBPUSD":1.27846,"USDJPY":151.99234,"USDCHF":0.88093,"AUDUSD":0.65640,"USDCAD":1.37039,"NZDUSD":0.60120,"EURGBP":0.85420,"EURJPY":165.120,"EURCHF":0.95710,"GBPJPY":195.492,"GBPCHF":1.12412,"AUDJPY":102.101,"AUDCAD":0.89527,"AUDNZD":1.07459,"CADJPY":113.376,"CHFJPY":173.131,"NZDJPY":93.120,"EURAUD":1.64500,"EURCAD":1.47500};
 let currentPair = "EURUSD";
 let prices = Object.assign({}, BASE_PRICES);
 let chart, candleSeries;
@@ -104,7 +111,6 @@ function fmt(v) { return v.toFixed(v > 100 ? 3 : 5); }
 function initChart() {
     const container = document.getElementById('chart-container');
     if (!container || typeof LightweightCharts === 'undefined') return;
-    
     try {
         chart = LightweightCharts.createChart(container, {
             layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
@@ -114,22 +120,14 @@ function initChart() {
             timeScale: { borderColor: '#2a2e39', timeVisible: true },
             handleScroll: false, handleScale: false,
         });
-        candleSeries = chart.addCandlestickSeries({
-            upColor: '#089981', downColor: '#f23645', borderVisible: false,
-            wickUpColor: '#089981', wickDownColor: '#f23645',
-        });
-    } catch(e) {
-        console.error("Ошибка графика:", e);
-    }
+        candleSeries = chart.addCandlestickSeries({ upColor: '#089981', downColor: '#f23645', borderVisible: false, wickUpColor: '#089981', wickDownColor: '#f23645' });
+    } catch(e) { console.error(e); }
 }
 
 function generateCandles(basePrice, count = 100) {
-    let candles = [];
-    let p = basePrice;
-    let time = Math.floor(Date.now() / 1000) - (count * 60);
+    let candles = [], p = basePrice, time = Math.floor(Date.now() / 1000) - (count * 60);
     for (let i = 0; i < count; i++) {
-        let open = p;
-        let close = p + (Math.random() - 0.5) * p * 0.002;
+        let open = p, close = p + (Math.random() - 0.5) * p * 0.002;
         let high = Math.max(open, close) + Math.random() * p * 0.001;
         let low = Math.min(open, close) - Math.random() * p * 0.001;
         candles.push({ time: time + (i * 60), open, high, low, close });
@@ -143,7 +141,6 @@ function updateHeader(sym, price) {
     document.getElementById('header-entry').textContent = fmt(price);
     document.getElementById('header-sl').textContent = fmt(price * 0.995);
     document.getElementById('header-tp').textContent = fmt(price * 1.010);
-    
     const change = (Math.random() * 2 - 1).toFixed(2);
     const changeEl = document.getElementById('header-change');
     changeEl.textContent = (change > 0 ? "+" : "") + change + "%";
@@ -154,16 +151,13 @@ function renderList() {
     const listEl = document.getElementById('pair-list');
     if (!listEl) return;
     listEl.innerHTML = "";
-    
     PAIRS.forEach(sym => {
         const price = prices[sym];
         const change = (Math.random() * 2 - 1).toFixed(2);
         const isActive = sym === currentPair ? "active" : "";
-        
         const item = document.createElement('div');
         item.className = `list-item ${isActive}`;
         item.onclick = () => selectPair(sym);
-        
         item.innerHTML = `
             <div class="list-item-left">
                 <div class="list-symbol">${sym.slice(0,3)}/${sym.slice(3)}</div>
@@ -172,8 +166,7 @@ function renderList() {
             <div class="list-item-right">
                 <div class="list-price">${fmt(price)}</div>
                 <div class="list-price-change ${change > 0 ? 'up' : 'down'}">${change > 0 ? '+' : ''}${change}%</div>
-            </div>
-        `;
+            </div>`;
         listEl.appendChild(item);
     });
 }
@@ -182,26 +175,74 @@ function selectPair(sym) {
     currentPair = sym;
     const price = prices[sym];
     updateHeader(sym, price);
-    
-    if (candleSeries) {
-        candleSeries.setData(generateCandles(price));
-        chart.timeScale().fitContent();
-    }
+    if (candleSeries) { candleSeries.setData(generateCandles(price)); chart.timeScale().fitContent(); }
     renderList();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// Запуск
+async function runBacktest() {
+    const btn = document.getElementById("btn-run");
+    btn.disabled = true; btn.textContent = "⏳ Считаем...";
+    try {
+        const res = await fetch('/api/backtest');
+        const data = await res.json();
+        const pnlEl = document.getElementById("stat-pnl");
+        pnlEl.textContent = (data.pnl > 0 ? "+" : "") + data.pnl + "R";
+        pnlEl.style.color = data.pnl >= 0 ? "#089981" : "#f23645";
+        document.getElementById("stat-trades").textContent = data.trades;
+        const wrEl = document.getElementById("stat-winrate");
+        wrEl.textContent = data.winrate + "%";
+        wrEl.style.color = data.winrate >= 50 ? "#089981" : "#eab308";
+    } catch (e) { alert("Ошибка: " + e.message); }
+    finally { btn.disabled = false; btn.textContent = "▶ Бэктест SMA 10/30"; }
+}
+
+async function runCompare() {
+    const btn = document.getElementById("btn-compare");
+    const loading = document.getElementById("compare-loading");
+    const results = document.getElementById("compare-results");
+    btn.disabled = true; loading.style.display = "block"; results.innerHTML = "";
+    try {
+        const res = await fetch('/api/strategies/compare');
+        const data = await res.json();
+        let html = "";
+        data.forEach((s, idx) => {
+            const pnlColor = s.pnl >= 0 ? "#089981" : "#f23645";
+            const rankColor = idx === 0 ? "#ffd700" : idx === 1 ? "#c0c0c0" : idx === 2 ? "#cd7f32" : "#787b86";
+            const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : "";
+            html += `
+                <div class="compare-row ${idx === 0 ? 'top1' : ''}">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <div class="rank-badge" style="color:${rankColor}">${medal} #${s.rank}</div>
+                        <div>
+                            <div class="strategy-name">${s.name}</div>
+                            <div class="strategy-stats">${s.trades} сделок · WR ${s.winrate}%</div>
+                        </div>
+                    </div>
+                    <div class="pnl-val" style="color:${pnlColor}">${s.pnl > 0 ? '+' : ''}${s.pnl}R</div>
+                </div>`;
+        });
+        results.innerHTML = html;
+    } catch (e) { alert("Ошибка: " + e.message); }
+    finally { btn.disabled = false; loading.style.display = "none"; }
+}
+
+function showScreen(name) {
+    document.getElementById("screen-market").style.display = name === "market" ? "block" : "none";
+    document.getElementById("screen-test").style.display = name === "test" ? "block" : "none";
+    const navs = document.querySelectorAll('.nav-item');
+    navs.forEach(n => n.classList.remove('active'));
+    if (name === 'market') navs[0].classList.add('active');
+    if (name === 'test') navs[2].classList.add('active');
+    window.scrollTo({ top: 0 });
+}
+
 window.onload = () => {
     initChart();
     selectPair("EURUSD");
-    
-    // Обновляем цены раз в секунду (только текст, чтобы не ломать график)
     setInterval(() => {
-        PAIRS.forEach(sym => {
-            prices[sym] += (Math.random() - 0.5) * prices[sym] * 0.0002;
-        });
+        PAIRS.forEach(sym => { prices[sym] += (Math.random() - 0.5) * prices[sym] * 0.0002; });
         updateHeader(currentPair, prices[currentPair]);
-        renderList();
     }, 1000);
 };
 </script>
