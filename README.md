@@ -1,2 +1,19 @@
-# fx-trading-bot
-FX trading bot for 20 currency pairs
+# FX Trading Bot
+
+Веб-приложение для анализа 20 валютных пар и сравнения 20 торговых стратегий.
+
+## Запуск на Render
+
+1. В Render выберите **New + → Blueprint**.
+2. Подключите GitHub и выберите репозиторий `fsb777f-dot/fx-trading-bot`.
+3. Render обнаружит файл `render.yaml`. Подтвердите создание сервиса.
+4. После завершения Deploy откройте адрес сервиса Render.
+
+Render использует:
+- Build: `pip install -r requirements.txt`
+- Start: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+- Health check: `/health`
+
+## Важно
+
+Текущие цены и свечи в интерфейсе, а также данные бэктеста пока демонстрационные (генерируются случайно). Подключение реальных котировок Capital.com DEMO будет следующим этапом. Автоматическая отправка торговых ордеров не включена.
