@@ -563,7 +563,7 @@ async def capital_demo_scan_all():
                 continue
 
             # Calculate only on the latest completed 5-minute candle.
-            history = [price for _, price in bars[:-1]]
+            history = [bar[1] for bar in bars[:-1]]
             index = len(history) - 1
             price = history[index]
             indicators = engine.prepare_indicators(history)
