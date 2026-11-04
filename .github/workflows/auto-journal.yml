@@ -28,8 +28,8 @@ jobs:
           APP_URL: https://fx-trading-bot-2vzh.onrender.com
         run: |
           if [ -z "$AUTO_SCAN_KEY" ]; then
-            echo "Missing GitHub Actions secret AUTO_SCAN_KEY"
-            exit 1
+            echo "Waiting for AUTO_SCAN_KEY to be added in GitHub and Render."
+            exit 0
           fi
           curl --fail --silent --show-error --max-time 240 \
             -H "X-AUTO-SCAN-KEY: $AUTO_SCAN_KEY" \
