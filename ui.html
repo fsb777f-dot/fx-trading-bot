@@ -54,6 +54,11 @@ main{padding:10px 11px 14px;max-width:900px;margin:auto}.screen{display:none}.sc
 .lamp-wait{background:var(--gold);color:var(--gold)}
 .lamp-buy{background:var(--green);color:var(--green)}
 .lamp-sell{background:var(--red);color:var(--red)}
+.consensus-card{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:10px}
+.consensus-top{display:flex;justify-content:space-between;gap:8px;font-size:11px;align-items:center}
+.consensus-track{height:7px;border-radius:8px;background:var(--line);overflow:hidden;margin:8px 0 6px}
+.consensus-track i{display:block;height:100%;background:var(--green);border-radius:8px}
+.consensus-detail{font-size:9px;color:var(--muted);margin-top:4px}
 .signal-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;width:100%;padding:10px 2px;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--text);text-align:left}
 .signal-row:last-child{border-bottom:0}
 .signal-row:active{background:var(--panel2)}
@@ -165,7 +170,7 @@ function renderPairs(){
     const d=allSignalData[p], state=d&&!d.error?d.summary:"WAIT";
     const cls=d&&d.error?"signal-error":state==="BUY"?"signal-buy":state==="SELL"?"signal-sell":"signal-wait";
     const stateText=d&&d.error?"НЕТ ДАННЫХ":state==="BUY"?"BUY":state==="SELL"?"SELL":"ОЖИДАНИЕ";
-    const counts=d&&!d.error?("BUY "+d.buy_count+" · SELL "+d.sell_count):"ожидание данных";
+    const counts=d&&!d.error?("BUY "+d.buy_count+" · SELL "+d.sell_count+" · сила "+d.strength_pct+"%"):"ожидание данных";
     const price=d&&d.price?fmt(d.price):(realPrices[p]?fmt(realPrices[p]):"—");
     return "<button class=\"pair "+(p===selected?"active ":"")+cls+"\" data-pair=\""+p+"\"><strong><i class=\"dot\"></i>"+label(p)+"</strong><span>"+price+"</span><span class=\"pair-state\">"+stateText+"</span><span class=\"pair-count\">"+counts+"</span></button>";
   }).join("");
@@ -227,10 +232,16 @@ function renderStrategySignals(){
   const data=allSignalData[selected];
   if(!data){$("strategy-signals").innerHTML='<div class="empty">Ожидаем результаты проверки для '+label(selected)+'</div>';return}
   if(data.error){$("strategy-signals").innerHTML='<div class="empty">'+data.error+'</div>';return}
-  $("strategy-signals").innerHTML=(data.signals||[]).map(s=>{
+  const score=data.strength_pct||0;
+  const strengthText=data.strength_label||"Нет согласия";
+  const strengthColor=score>=60?"green":score>=25?"gold":"muted";
+  const summaryText=data.summary==="BUY"?"ПРЕОБЛАДАЕТ BUY":data.summary==="SELL"?"ПРЕОБЛАДАЕТ SELL":"НЕТ ОБЩЕГО СИГНАЛА";
+  const summaryColor=data.summary==="BUY"?"green":data.summary==="SELL"?"red":"gold";
+  const summaryHtml='<div class="consensus-card"><div class="consensus-top"><b>'+summaryText+'</b><b class="'+summaryColor+'">'+score+'% · '+strengthText+'</b></div><div class="consensus-track"><i style="width:'+score+'%"></i></div><div class="consensus-detail">BUY '+data.buy_count+' · SELL '+data.sell_count+' · WAIT '+data.wait_count+' из 20 стратегий</div><div class="consensus-detail">Согласие среди BUY/SELL: '+data.agreement_pct+'%</div></div>';
+  $("strategy-signals").innerHTML=summaryHtml+(data.signals||[]).map(s=>{
     const state=s.signal||"WAIT", lamp=state==="BUY"?"lamp-buy":state==="SELL"?"lamp-sell":"lamp-wait";
     const text=state==="BUY"?"ПОКУПКА":state==="SELL"?"ПРОДАЖА":"ОЖИДАНИЕ";
-    const levels=state==="WAIT"?"":'<div class="signal-levels"><span>Вход <b>'+fmt(s.price)+'</b></span><span>SL <b class="red">'+fmt(s.stop_loss)+'</b></span><span>TP <b class="green">'+fmt(s.take_profit)+'</b></span></div>';
+    const levels=state==="WAIT"?"":'<div class="signal-levels"><span>Цена <b>'+fmt(s.price)+'</b></span><span>SL <b class="red">'+fmt(s.stop_loss)+'</b></span><span>TP <b class="green">'+fmt(s.take_profit)+'</b></span></div>';
     return '<button class="signal-row '+(s.strategy===activeStrategy?"selected":"")+'" data-strategy="'+s.strategy+'"><div><div class="signal-name"><i class="lamp '+lamp+'"></i>'+s.strategy+'</div>'+levels+'</div><span class="signal-state '+(state==="BUY"?"green":state==="SELL"?"red":"gold")+'">'+text+'</span></button>';
   }).join("");
   document.querySelectorAll("#strategy-signals [data-strategy]").forEach(b=>{b.onclick=()=>selectSignalStrategy(b.dataset.strategy)});
