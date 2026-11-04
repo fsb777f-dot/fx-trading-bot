@@ -14,6 +14,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Check Python syntax
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile application files
+        run: python -m py_compile main.py engine.py
       - name: Scan Capital.com Demo and update virtual journal
         env:
           AUTO_SCAN_KEY: ${{ secrets.AUTO_SCAN_KEY }}
