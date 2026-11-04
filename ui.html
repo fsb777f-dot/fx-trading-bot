@@ -30,7 +30,7 @@ main{padding:10px 11px 14px;max-width:900px;margin:auto}.screen{display:none}.sc
 .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:13px}.stat{background:var(--panel);border:1px solid var(--line);padding:13px;border-radius:13px}.stat label{font-size:10px;color:var(--muted);display:block;margin-bottom:7px}.stat b{font-size:21px;font-variant-numeric:tabular-nums}
 .trade{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:13px;margin-bottom:9px;border-left:3px solid var(--muted)}.trade.win{border-left-color:var(--green)}.trade.loss{border-left-color:var(--red)}.trade.open{border-left-color:var(--gold)}
 .trade-top{display:flex;justify-content:space-between;gap:8px;align-items:center}.trade-top strong{font-size:14px}.tag{font-size:9px;font-weight:800;padding:5px 7px;border-radius:20px;background:var(--panel2);color:var(--muted)}.tag.tp{background:#12372f;color:var(--green)}.tag.sl{background:#401f2b;color:var(--red)}.tag.open{background:#3b301a;color:var(--gold)}
-.trade-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:11px}.trade-grid label{display:block;color:var(--muted);font-size:9px;margin-bottom:4px}.trade-grid b{font-size:11px;font-variant-numeric:tabular-nums}.trade-foot{font-size:10px;color:var(--muted);margin-top:10px;display:flex;justify-content:space-between;gap:8px}
+.trade-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:11px}.trade-grid label{display:block;color:var(--muted);font-size:9px;margin-bottom:4px}.trade-grid b{font-size:11px;font-variant-numeric:tabular-nums}.trade-foot{font-size:10px;color:var(--muted);margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px}.delete-btn{border:1px solid #693344;background:#321d2a;color:#ff8da0;padding:6px 9px;border-radius:8px;font-size:10px;font-weight:700}
 .empty{text-align:center;color:var(--muted);padding:30px 12px;font-size:13px}
 .nav{position:fixed;bottom:0;left:0;right:0;height:67px;background:#101a2b;border-top:1px solid var(--line);display:flex;justify-content:space-around;z-index:10;padding-bottom:env(safe-area-inset-bottom)}
 .nav button{border:0;background:none;color:var(--muted);font-size:10px;min-width:70px}.nav button span{display:block;font-size:19px;margin-bottom:3px}.nav button.active{color:var(--blue)}
@@ -43,7 +43,7 @@ main{padding:10px 11px 14px;max-width:900px;margin:auto}.screen{display:none}.sc
 <main>
 <section id="market" class="screen active">
  <div class="panel chart-panel">
-  <div class="quote-head"><div><div class="muted">ГРАФИК · 5 МИНУТ</div><h2 id="symbol">EUR/USD</h2></div><div class="price" id="current-price">1.08500</div></div>
+  <div class="quote-head"><div><div class="muted">ГРАФИК · 5 МИНУТ</div><h2 id="symbol">EUR/USD</h2></div><div class="price" id="current-price" style="font-size:12px;color:var(--green)">TRADINGVIEW</div></div>
   <div id="chart" class="chart"></div>
   <div class="metrics"><div class="metric"><label>СИГНАЛ</label><b id="direction">ОЖИДАНИЕ</b></div><div class="metric"><label>STOP LOSS</label><b id="sl">—</b></div><div class="metric"><label>TAKE PROFIT</label><b id="tp">—</b></div></div>
  </div>
@@ -53,7 +53,7 @@ main{padding:10px 11px 14px;max-width:900px;margin:auto}.screen{display:none}.sc
   <div class="section-head"><h2>Активная стратегия</h2><span class="muted">5M</span></div>
   <select id="strategy-select" class="select"></select>
   <button class="btn" id="toggle-scan" onclick="toggleScan()">▶ Включить стратегию</button>
-  <div class="note">Сделки виртуальные. Цены и движение пока демонстрационные, не котировки брокера. Ордеры в Capital.com не отправляются.</div>
+  <div class="note">График загружается из TradingView. Сигналы и тестирование пока используют тестовые данные — не применяй их для реальных сделок. Ордеры брокеру не отправляются.</div>
  </div>
 </section>
 <section id="journal" class="screen">
@@ -64,7 +64,7 @@ main{padding:10px 11px 14px;max-width:900px;margin:auto}.screen{display:none}.sc
   <div class="stat"><label>УБЫТОЧНЫЕ</label><b class="red" id="stat-losses">0</b></div>
   <div class="stat"><label>WIN RATE</label><b id="stat-rate">0%</b></div>
  </div>
- <div class="section-head"><h2>История операций</h2><span class="muted" id="journal-count">0 записей</span></div>
+ <div class="section-head"><h2>История операций</h2><div style="display:flex;align-items:center;gap:8px"><span class="muted" id="journal-count">0 записей</span><button class="delete-btn" onclick="clearJournal()">Очистить</button></div></div>
  <div id="journal-list"></div>
 </section>
 <section id="test" class="screen">
@@ -102,6 +102,21 @@ async function tickTrades(){try{await fetch("/api/demo/tick",{method:"POST",head
 function updateMarket(){for(const p of PAIRS){let prev=prices[p];prices[p]=prev+(Math.random()-.5)*prev*.00012;let c=candles[p],last=c[c.length-1];last.close=prices[p];last.high=Math.max(last.high,prices[p]);last.low=Math.min(last.low,prices[p]);if(Date.now()/1000-last.time>300){c.push({time:last.time+300,open:last.close,high:last.close,low:last.close,close:last.close});if(c.length>120)c.shift()}}$("current-price").textContent=fmt(prices[selected]);if(series)series.update(candles[selected][candles[selected].length-1]);renderPairs();tickTrades()}
 async function loadJournal(){try{let rows=await(await fetch("/api/journal")).json();let closed=rows.filter(x=>x.status==="CLOSED"),wins=closed.filter(x=>x.result==="TAKE_PROFIT").length,losses=closed.filter(x=>x.result==="STOP_LOSS").length;$("stat-total").textContent=rows.length;$("stat-wins").textContent=wins;$("stat-losses").textContent=losses;$("stat-rate").textContent=(closed.length?Math.round(wins/closed.length*100):0)+"%";$("journal-count").textContent=rows.length+" записей";$("journal-list").innerHTML=rows.length?rows.map(t=>{let cls=t.status==="OPEN"?"open":t.result==="TAKE_PROFIT"?"win":"loss",tag=t.status==="OPEN"?"В РАБОТЕ":t.result==="TAKE_PROFIT"?"TAKE PROFIT":"STOP LOSS",tagcls=t.status==="OPEN"?"open":t.result==="TAKE_PROFIT"?"tp":"sl";return `<article class="trade ${cls}"><div class="trade-top"><strong>${label(t.pair)} · <span class="${t.side==='BUY'?'green':'red'}">${t.side}</span></strong><span class="tag ${tagcls}">${tag}</span></div><div class="trade-grid"><div><label>ВХОД</label><b>${fmt(t.entry)}</b></div><div><label>STOP LOSS</label><b class="red">${fmt(t.stop_loss)}</b></div><div><label>TAKE PROFIT</label><b class="green">${fmt(t.take_profit)}</b></div></div><div class="trade-foot"><span>${t.strategy}</span><span>${t.status==='OPEN'?'Открыта':(t.pnl>0?'+':'')+t.pnl+'%'}</span></div></article>`}).join(""):'<div class="panel empty">Пока сделок нет. Включи стратегию на экране «Рынок».</div>'}catch(e){$("journal-list").innerHTML='<div class="empty">Не удалось загрузить журнал</div>'}}
 async function runCompare(){let b=$("compare-btn");b.disabled=true;b.textContent="Проверяем стратегии...";try{let d=await(await fetch("/api/strategies/compare")).json();if(!Array.isArray(d))throw new Error("Bad response");compareResults={};d.forEach(x=>compareResults[x.name]=x);renderStrategyList();b.textContent="↻ Проверить стратегии"}catch(e){b.textContent="Ошибка. Повторить проверку";console.warn(e)}finally{b.disabled=false}}
-window.addEventListener("load",()=>{renderPairs();initChart();loadStrategies();loadJournal();setInterval(updateMarket,3000)});
+function renderTradingView(){
+ const host=$("chart");host.innerHTML="";
+ const box=document.createElement("div");box.className="tradingview-widget-container";box.style.height="100%";box.style.width="100%";
+ const inner=document.createElement("div");inner.className="tradingview-widget-container__widget";inner.style.height="100%";inner.style.width="100%";box.appendChild(inner);host.appendChild(box);
+ const script=document.createElement("script");script.type="text/javascript";script.src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";script.async=true;
+ script.text=JSON.stringify({autosize:true,symbol:"FX_IDC:"+selected,interval:"5",timezone:"Etc/UTC",theme:"dark",style:"1",locale:"ru",allow_symbol_change:false,hide_side_toolbar:true,hide_top_toolbar:false,hide_legend:false,hide_volume:true,details:false,hotlist:false,calendar:false,withdateranges:true,save_image:false,support_host:"https://www.tradingview.com"});
+ box.appendChild(script);
+}
+function initChart(){renderTradingView()}
+function choosePair(p){selected=p;renderPairs();$("symbol").textContent=label(p);renderTradingView()}
+function renderPairs(){$("pairs").innerHTML=PAIRS.map(p=>"<button class=\"pair "+(p===selected?"active":"")+"\" data-pair=\""+p+"\"><strong><i class=\"dot\"></i>"+label(p)+"</strong><span>TradingView</span></button>").join("");document.querySelectorAll("#pairs [data-pair]").forEach(b=>b.onclick=()=>choosePair(b.dataset.pair))}
+function updateMarket(){ /* No simulated prices: TradingView supplies the chart. */ }
+function toggleScan(){alert("Сканер временно отключён. Реальный график уже подключён, но поток котировок для расчёта сигналов ещё не подключён. Не будем открывать сделки по случайным ценам.")}
+async function deleteTrade(id){if(!confirm("Удалить эту сделку из журнала?"))return;try{const r=await fetch("/api/journal/"+id,{method:"DELETE"});if(!r.ok)throw new Error(await r.text());await loadJournal()}catch(e){alert("Не удалось удалить сделку: "+e.message)}}
+async function clearJournal(){if(!confirm("Удалить ВСЕ сделки из журнала? Это действие нельзя отменить."))return;try{const r=await fetch("/api/journal",{method:"DELETE"});if(!r.ok)throw new Error(await r.text());await loadJournal()}catch(e){alert("Не удалось очистить журнал: "+e.message)}}
+window.addEventListener("load",()=>{renderPairs();initChart();loadStrategies();loadJournal()});
 </script>
 </body></html>
