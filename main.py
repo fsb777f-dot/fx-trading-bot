@@ -1,12 +1,13 @@
 import os
 import json
+import hmac
 import sqlite3
 import time
 from pathlib import Path
 from datetime import datetime, timezone
 
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 import engine
@@ -521,8 +522,10 @@ def auto_journal_sync(pair, side, price, candle_high, candle_low, candle_time, c
         return {"opened":False, "closed":None, "error":str(exc)[:250]}
 
 @app.get("/api/capital/scan")
-async def capital_demo_scan_all():
-    """Read-only scan: all 20 currency pairs x all 20 strategies on closed M5 candles."""
+async def capital_demo_scan_all(x_auto_scan_key: str = Header(default="")):
+    """Read-only scan for the UI; authenticated scheduled calls also update the virtual journal."""
+    configured_key = os.getenv("AUTO_SCAN_KEY", "")
+    auto_journal_enabled = bool(configured_key) and hmac.compare_digest(x_auto_scan_key, configured_key)
     try:
         headers = capital_login_tokens()
     except Exception as exc:
@@ -620,7 +623,7 @@ async def capital_demo_scan_all():
             journal_event = auto_journal_sync(
                 pair, summary if summary in ("BUY", "SELL") else None,
                 price, bars[-2][2], bars[-2][3], candle_time, confirmations
-            )
+            ) if auto_journal_enabled else {"opened":False, "closed":None, "reason":"Автожурнал запускается по расписанию"}
             results.append({
                 "pair": pair,
                 "price": price,
@@ -649,6 +652,7 @@ async def capital_demo_scan_all():
         "timeframe": "MINUTE_5",
         "refresh_seconds": 300,
         "orders_enabled": False,
+        "auto_journal_enabled": auto_journal_enabled,
         "strategies_checked": len(engine.STRATEGIES),
         "pairs_checked": len(CAPITAL_PAIR_LIST),
         "results": results,
