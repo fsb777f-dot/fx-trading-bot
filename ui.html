@@ -30,7 +30,7 @@ main{padding:10px 11px 14px;max-width:900px;margin:auto}.screen{display:none}.sc
 .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:13px}.stat{background:var(--panel);border:1px solid var(--line);padding:13px;border-radius:13px}.stat label{font-size:10px;color:var(--muted);display:block;margin-bottom:7px}.stat b{font-size:21px;font-variant-numeric:tabular-nums}
 .trade{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:13px;margin-bottom:9px;border-left:3px solid var(--muted)}.trade.win{border-left-color:var(--green)}.trade.loss{border-left-color:var(--red)}.trade.open{border-left-color:var(--gold)}
 .trade-top{display:flex;justify-content:space-between;gap:8px;align-items:center}.trade-top strong{font-size:14px}.tag{font-size:9px;font-weight:800;padding:5px 7px;border-radius:20px;background:var(--panel2);color:var(--muted)}.tag.tp{background:#12372f;color:var(--green)}.tag.sl{background:#401f2b;color:var(--red)}.tag.open{background:#3b301a;color:var(--gold)}
-.trade-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:11px}.trade-grid label{display:block;color:var(--muted);font-size:9px;margin-bottom:4px}.trade-grid b{font-size:11px;font-variant-numeric:tabular-nums}.trade-foot{font-size:10px;color:var(--muted);margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px}.delete-btn{border:1px solid #693344;background:#321d2a;color:#ff8da0;padding:6px 9px;border-radius:8px;font-size:10px;font-weight:700}
+.trade-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:11px}.trade-grid label{display:block;color:var(--muted);font-size:9px;margin-bottom:4px}.trade-grid b{font-size:11px;font-variant-numeric:tabular-nums}.trade-foot{font-size:10px;color:var(--muted);margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px}.period-select{width:auto;max-width:88px;padding:6px 5px;margin:0;font-size:10px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px}.delete-btn{border:1px solid #693344;background:#321d2a;color:#ff8da0;padding:6px 9px;border-radius:8px;font-size:10px;font-weight:700}
 .empty{text-align:center;color:var(--muted);padding:30px 12px;font-size:13px}
 .nav{position:fixed;bottom:0;left:0;right:0;height:67px;background:#101a2b;border-top:1px solid var(--line);display:flex;justify-content:space-around;z-index:10;padding-bottom:env(safe-area-inset-bottom)}
 .nav button{border:0;background:none;color:var(--muted);font-size:10px;min-width:70px}.nav button span{display:block;font-size:19px;margin-bottom:3px}.nav button.active{color:var(--blue)}
@@ -103,7 +103,8 @@ main{padding:10px 11px 14px;max-width:900px;margin:auto}.screen{display:none}.sc
   <div class="stat"><label>УБЫТОЧНЫЕ</label><b class="red" id="stat-losses">0</b></div>
   <div class="stat"><label>WIN RATE</label><b id="stat-rate">0%</b></div>
  </div>
- <div class="section-head"><h2>История операций</h2><div style="display:flex;align-items:center;gap:8px"><span class="muted" id="journal-count">0 записей</span><button class="delete-btn" onclick="clearJournal()">Очистить</button></div></div>
+ <div class="section-head"><h2>История операций</h2><div style="display:flex;align-items:center;gap:8px"><select id="journal-period" class="period-select" onchange="renderJournal()"><option value="7">7 дней</option><option value="all">Всё время</option></select><span class="muted" id="journal-count">0 записей</span><button class="delete-btn" onclick="clearJournal()">Очистить</button></div></div>
+ <div class="note" style="margin:-5px 0 10px">Автоматические виртуальные сделки открываются при согласии минимум 4 стратегий. Закрытие проверяется по Stop Loss и Take Profit на свечах Capital.com Demo.</div>
  <div id="journal-list"></div>
 </section>
 <section id="test" class="screen">
@@ -139,7 +140,38 @@ function toggleScan(){scanning=!scanning;$("toggle-scan").textContent=scanning?"
 async function scanOnce(){try{let r=await fetch("/api/demo/scan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({strategy:activeStrategy,prices})});let d=await r.json();if(d.opened?.length)loadJournal()}catch(e){console.warn(e)}}
 async function tickTrades(){try{await fetch("/api/demo/tick",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prices})})}catch(e){}}
 function updateMarket(){for(const p of PAIRS){let prev=prices[p];prices[p]=prev+(Math.random()-.5)*prev*.00012;let c=candles[p],last=c[c.length-1];last.close=prices[p];last.high=Math.max(last.high,prices[p]);last.low=Math.min(last.low,prices[p]);if(Date.now()/1000-last.time>300){c.push({time:last.time+300,open:last.close,high:last.close,low:last.close,close:last.close});if(c.length>120)c.shift()}}$("current-price").textContent=fmt(prices[selected]);if(series)series.update(candles[selected][candles[selected].length-1]);renderPairs();tickTrades()}
-async function loadJournal(){try{let rows=await(await fetch("/api/journal")).json();let closed=rows.filter(x=>x.status==="CLOSED"),wins=closed.filter(x=>x.result==="TAKE_PROFIT").length,losses=closed.filter(x=>x.result==="STOP_LOSS").length;$("stat-total").textContent=rows.length;$("stat-wins").textContent=wins;$("stat-losses").textContent=losses;$("stat-rate").textContent=(closed.length?Math.round(wins/closed.length*100):0)+"%";$("journal-count").textContent=rows.length+" записей";$("journal-list").innerHTML=rows.length?rows.map(t=>{let cls=t.status==="OPEN"?"open":t.result==="TAKE_PROFIT"?"win":"loss",tag=t.status==="OPEN"?"В РАБОТЕ":t.result==="TAKE_PROFIT"?"TAKE PROFIT":"STOP LOSS",tagcls=t.status==="OPEN"?"open":t.result==="TAKE_PROFIT"?"tp":"sl";return `<article class="trade ${cls}"><div class="trade-top"><strong>${label(t.pair)} · <span class="${t.side==='BUY'?'green':'red'}">${t.side}</span></strong><span class="tag ${tagcls}">${tag}</span></div><div class="trade-grid"><div><label>ВХОД</label><b>${fmt(t.entry)}</b></div><div><label>STOP LOSS</label><b class="red">${fmt(t.stop_loss)}</b></div><div><label>TAKE PROFIT</label><b class="green">${fmt(t.take_profit)}</b></div></div><div class="trade-foot"><span>${t.strategy}</span><span>${t.status==='OPEN'?'Открыта':(t.pnl>0?'+':'')+t.pnl+'%'}</span><button class="delete-btn" onclick="deleteTrade(${t.id})">Удалить</button></div></article>`}).join(""):'<div class="panel empty">Пока сделок нет. Включи стратегию на экране «Рынок».</div>'}catch(e){$("journal-list").innerHTML='<div class="empty">Не удалось загрузить журнал</div>'}}
+function renderJournal(){
+  const period=$("journal-period")?.value||"7";
+  const cutoff=Date.now()-7*24*60*60*1000;
+  const rows=period==="all"?journalRowsCache:journalRowsCache.filter(t=>{const ts=Date.parse(t.opened_at||"");return Number.isFinite(ts)&&ts>=cutoff});
+  const closed=rows.filter(x=>x.status==="CLOSED");
+  const wins=closed.filter(x=>x.result==="TAKE_PROFIT").length;
+  const losses=closed.filter(x=>x.result==="STOP_LOSS").length;
+  $("stat-total").textContent=rows.length;
+  $("stat-wins").textContent=wins;
+  $("stat-losses").textContent=losses;
+  $("stat-rate").textContent=(closed.length?Math.round(wins/closed.length*100):0)+"%";
+  $("journal-count").textContent=rows.length+(period==="all"?" записей":" за 7 дней");
+  $("journal-list").innerHTML=rows.length?rows.map(t=>{
+    const cls=t.status==="OPEN"?"open":t.result==="TAKE_PROFIT"?"win":"loss";
+    const tag=t.status==="OPEN"?"В РАБОТЕ":t.result==="TAKE_PROFIT"?"TAKE PROFIT":"STOP LOSS";
+    const tagcls=t.status==="OPEN"?"open":t.result==="TAKE_PROFIT"?"tp":"sl";
+    const match=String(t.strategy||"").match(/^AUTO\\|(BUY|SELL)\\|(\\d+)\\|(\\d+)$/);
+    const strategyText=match?"Автосканер · "+match[1]+" · "+match[2]+" подтверждения":(t.strategy||"—");
+    const opened=t.opened_at?new Date(t.opened_at).toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"";
+    return '<article class="trade '+cls+'"><div class="trade-top"><strong>'+label(t.pair)+' · <span class="'+(t.side==="BUY"?"green":"red")+'">'+t.side+'</span></strong><span class="tag '+tagcls+'">'+tag+'</span></div><div class="trade-grid"><div><label>ВХОД</label><b>'+fmt(t.entry)+'</b></div><div><label>STOP LOSS</label><b class="red">'+fmt(t.stop_loss)+'</b></div><div><label>TAKE PROFIT</label><b class="green">'+fmt(t.take_profit)+'</b></div></div><div class="trade-foot"><span>'+strategyText+'</span><span>'+(t.status==="OPEN"?"Открыта":(t.pnl>0?"+":"")+t.pnl+"%")+'</span><span>'+opened+'</span><button class="delete-btn" onclick="deleteTrade('+t.id+')">Удалить</button></div></article>';
+  }).join(""):'<div class="panel empty">За выбранный период сделок пока нет.</div>';
+}
+async function loadJournal(){
+  try{
+    const response=await fetch("/api/journal",{cache:"no-store"});
+    if(!response.ok)throw new Error("Не удалось получить журнал");
+    journalRowsCache=await response.json();
+    renderJournal();
+  }catch(error){
+    $("journal-list").innerHTML='<div class="empty">Не удалось загрузить журнал</div>';
+  }
+}
 async function runCompare(){let b=$("compare-btn");b.disabled=true;b.textContent="Проверяем стратегии...";try{let d=await(await fetch("/api/strategies/compare")).json();if(!Array.isArray(d))throw new Error("Bad response");compareResults={};d.forEach(x=>compareResults[x.name]=x);renderStrategyList();b.textContent="↻ Проверить стратегии"}catch(e){b.textContent="Ошибка. Повторить проверку";console.warn(e)}finally{b.disabled=false}}
 function renderTradingView(){
  const host=$("chart");host.innerHTML="";
@@ -159,6 +191,7 @@ async function clearJournal(){if(!confirm("Удалить ВСЕ сделки и
 
 /* ========== REAL CAPITAL.COM DEMO CANDLES ========== */
 let realPrices = {};
+let journalRowsCache = [];
 let allSignalData = {};
 let signalScanTimer = null;
 let signalScanBusy = false;
