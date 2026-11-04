@@ -469,6 +469,13 @@ def auto_journal_sync(pair, side, price, candle_high, candle_low, candle_time, c
                     hit, exit_price = "STOP_LOSS", float(trade["stop_loss"])
                 elif candle_low <= float(trade["take_profit"]):
                     hit, exit_price = "TAKE_PROFIT", float(trade["take_profit"])
+
+            # If a fresh consensus points in the opposite direction, close the
+            # previous virtual position at the current price and allow the new
+            # BUY/SELL position to be recorded in this same scan.
+            if not hit and side in ("BUY", "SELL") and side != trade["side"]:
+                hit, exit_price = "SIGNAL_REVERSAL", float(price)
+
             closed = None
             if hit:
                 pnl = ((exit_price-float(trade["entry"]))/float(trade["entry"])*100) * (1 if trade["side"] == "BUY" else -1)
@@ -480,9 +487,15 @@ def auto_journal_sync(pair, side, price, candle_high, candle_low, candle_time, c
                     conn.execute("UPDATE trades SET status='CLOSED',exit_price=?,result=?,pnl=?,closed_at=? WHERE id=?", (exit_price,hit,round(pnl,4),stamp,trade["id"]))
                     conn.commit()
                 closed = {"id":trade["id"], "result":hit, "pnl":round(pnl,4)}
+            elif side in ("BUY", "SELL"):
+                if conn:
+                    conn.close()
+                return {"opened":False, "closed":None, "reason":"Уже открыта сделка в том же направлении"}
+
             if conn:
                 conn.close()
-            return {"opened":False, "closed":closed, "reason":"Уже была открытая сделка"}
+            # A position closed by SL/TP or by an opposite consensus can be
+            # followed by a new consensus position below in this same scan.
 
         if conn:
             conn.close()
