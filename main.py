@@ -445,94 +445,151 @@ async def capital_demo_signal(pair: str, strategy: str = "EMA 9/21"):
         raise HTTPException(503, "Не удалось рассчитать сигнал " + pair + ": " + str(exc))
 
 
-def auto_journal_sync(pair, side, price, candle_high, candle_low, candle_time, confirmations):
-    """Create one virtual consensus trade per pair/M5 candle and close open trades at SL/TP."""
+def auto_journal_sync(pair, side, price, candles, candle_time, confirmations):
+    """Save one virtual consensus entry and process every unseen M5 candle for SL/TP."""
+    conn = None
     try:
-        conn = None
         if cloud_db_enabled():
-            rows = cloud_request("GET", params={"select":"*", "pair":"eq."+pair, "status":"eq.OPEN", "order":"id.desc", "limit":"1"})
+            rows = cloud_request("GET", params={
+                "select": "*", "pair": "eq." + pair, "status": "eq.OPEN",
+                "order": "id.desc", "limit": "1"
+            })
         else:
             conn = db()
-            rows = [dict(x) for x in conn.execute("SELECT * FROM trades WHERE pair=? AND status='OPEN' ORDER BY id DESC LIMIT 1", (pair,)).fetchall()]
+            rows = [dict(x) for x in conn.execute(
+                "SELECT * FROM trades WHERE pair=? AND status='OPEN' ORDER BY id DESC LIMIT 1",
+                (pair,)
+            ).fetchall()]
 
+        closed = None
         if rows:
             trade = rows[0]
+            entry = float(trade["entry"])
+            stop = float(trade["stop_loss"])
+            target = float(trade["take_profit"])
+            trade_side = str(trade["side"]).upper()
+
+            # AUTO tags store the signal candle timestamp: AUTO|BUY|N|unix_time.
+            # This prevents counting price movement that happened before entry.
+            entry_candle_time = None
+            tag_parts = str(trade.get("strategy") or "").split("|")
+            if len(tag_parts) >= 4 and tag_parts[0] == "AUTO":
+                try:
+                    entry_candle_time = int(tag_parts[-1])
+                except (TypeError, ValueError):
+                    entry_candle_time = None
+            if entry_candle_time is None:
+                try:
+                    opened = datetime.fromisoformat(str(trade["opened_at"]).replace("Z", "+00:00"))
+                    if opened.tzinfo is None:
+                        opened = opened.replace(tzinfo=timezone.utc)
+                    entry_candle_time = (int(opened.timestamp()) // 300) * 300
+                except Exception:
+                    entry_candle_time = int(candle_time)
+
+            # Walk forward through every candle after the signal/entry candle.
+            # If both levels are touched in one candle, count SL first (conservative).
             hit = None
             exit_price = None
-            if trade["side"] == "BUY":
-                if candle_low <= float(trade["stop_loss"]):
-                    hit, exit_price = "STOP_LOSS", float(trade["stop_loss"])
-                elif candle_high >= float(trade["take_profit"]):
-                    hit, exit_price = "TAKE_PROFIT", float(trade["take_profit"])
-            else:
-                if candle_high >= float(trade["stop_loss"]):
-                    hit, exit_price = "STOP_LOSS", float(trade["stop_loss"])
-                elif candle_low <= float(trade["take_profit"]):
-                    hit, exit_price = "TAKE_PROFIT", float(trade["take_profit"])
-
-            # If a fresh consensus points in the opposite direction, close the
-            # previous virtual position at the current price and allow the new
-            # BUY/SELL position to be recorded in this same scan.
-            if not hit and side in ("BUY", "SELL") and side != trade["side"]:
-                hit, exit_price = "SIGNAL_REVERSAL", float(price)
-
-            closed = None
-            if hit:
-                pnl = ((exit_price-float(trade["entry"]))/float(trade["entry"])*100) * (1 if trade["side"] == "BUY" else -1)
-                stamp = datetime.now(timezone.utc).isoformat()
-                values = {"status":"CLOSED", "exit_price":exit_price, "result":hit, "pnl":round(pnl,4), "closed_at":stamp}
-                if cloud_db_enabled():
-                    cloud_request("PATCH", params={"id":"eq."+str(trade["id"])}, payload=values, prefer="return=minimal")
+            hit_candle_time = None
+            for bar_time, bar_close, bar_high, bar_low in candles:
+                if int(bar_time) <= entry_candle_time:
+                    continue
+                if trade_side == "BUY":
+                    if float(bar_low) <= stop:
+                        hit, exit_price = "STOP_LOSS", stop
+                    elif float(bar_high) >= target:
+                        hit, exit_price = "TAKE_PROFIT", target
                 else:
-                    conn.execute("UPDATE trades SET status='CLOSED',exit_price=?,result=?,pnl=?,closed_at=? WHERE id=?", (exit_price,hit,round(pnl,4),stamp,trade["id"]))
+                    if float(bar_high) >= stop:
+                        hit, exit_price = "STOP_LOSS", stop
+                    elif float(bar_low) <= target:
+                        hit, exit_price = "TAKE_PROFIT", target
+                if hit:
+                    hit_candle_time = int(bar_time)
+                    break
+
+            # A confirmed opposite consensus closes the old position at the scan price.
+            if not hit and side in ("BUY", "SELL") and side != trade_side:
+                hit, exit_price = "SIGNAL_REVERSAL", float(price)
+                hit_candle_time = int(candle_time)
+
+            if hit:
+                pnl = ((float(exit_price) - entry) / entry * 100) * (1 if trade_side == "BUY" else -1)
+                stamp = datetime.fromtimestamp(hit_candle_time or int(candle_time), timezone.utc).isoformat()
+                values = {
+                    "status": "CLOSED", "exit_price": float(exit_price), "result": hit,
+                    "pnl": round(pnl, 4), "closed_at": stamp
+                }
+                if cloud_db_enabled():
+                    cloud_request("PATCH", params={"id": "eq." + str(trade["id"])},
+                                  payload=values, prefer="return=representation")
+                else:
+                    conn.execute(
+                        "UPDATE trades SET status='CLOSED',exit_price=?,result=?,pnl=?,closed_at=? WHERE id=?",
+                        (float(exit_price), hit, round(pnl, 4), stamp, trade["id"])
+                    )
                     conn.commit()
-                closed = {"id":trade["id"], "result":hit, "pnl":round(pnl,4)}
+                closed = {
+                    "id": trade["id"], "result": hit, "exit_price": float(exit_price),
+                    "pnl": round(pnl, 4), "closed_at": stamp
+                }
             elif side in ("BUY", "SELL"):
-                if conn:
-                    conn.close()
-                return {"opened":False, "closed":None, "reason":"Уже открыта сделка в том же направлении"}
+                return {
+                    "opened": False, "closed": None,
+                    "reason": "Сделка ещё открыта: TP/SL не достигнуты"
+                }
 
-            if conn:
-                conn.close()
-            # A position closed by SL/TP or by an opposite consensus can be
-            # followed by a new consensus position below in this same scan.
-
-        if conn:
-            conn.close()
-        if side not in ("BUY","SELL"):
-            return {"opened":False, "closed":None}
+        if side not in ("BUY", "SELL"):
+            return {"opened": False, "closed": closed}
 
         strategy_tag = "AUTO|" + side + "|" + str(confirmations) + "|" + str(candle_time)
         if cloud_db_enabled():
-            duplicate = cloud_request("GET", params={"select":"id", "pair":"eq."+pair, "strategy":"eq."+strategy_tag, "limit":"1"})
+            duplicate = cloud_request("GET", params={
+                "select": "id", "pair": "eq." + pair, "strategy": "eq." + strategy_tag, "limit": "1"
+            })
         else:
             check = db()
-            duplicate = check.execute("SELECT id FROM trades WHERE pair=? AND strategy=? LIMIT 1", (pair,strategy_tag)).fetchall()
+            duplicate = check.execute(
+                "SELECT id FROM trades WHERE pair=? AND strategy=? LIMIT 1",
+                (pair, strategy_tag)
+            ).fetchall()
             check.close()
         if duplicate:
-            return {"opened":False, "closed":None, "reason":"Сигнал этой свечи уже записан"}
+            return {"opened": False, "closed": closed, "reason": "Сигнал этой свечи уже записан"}
 
-        sl = price*(0.9985 if side=="BUY" else 1.0015)
-        tp = price*(1.003 if side=="BUY" else 0.997)
+        entry_price = float(price)
+        sl = entry_price * (0.9985 if side == "BUY" else 1.0015)
+        tp = entry_price * (1.003 if side == "BUY" else 0.997)
         stamp = datetime.now(timezone.utc).isoformat()
-        values = {"pair":pair, "strategy":strategy_tag, "side":side, "entry":price, "stop_loss":sl, "take_profit":tp, "opened_at":stamp}
+        values = {
+            "pair": pair, "strategy": strategy_tag, "side": side,
+            "entry": entry_price, "stop_loss": sl, "take_profit": tp,
+            "opened_at": stamp
+        }
         if cloud_db_enabled():
             saved = cloud_request("POST", payload=values, prefer="return=representation")
             trade_id = saved[0]["id"] if saved else None
         else:
-            conn = db()
-            cur = conn.execute("INSERT INTO trades(pair,strategy,side,entry,stop_loss,take_profit,opened_at) VALUES(?,?,?,?,?,?,?)", (pair,strategy_tag,side,price,sl,tp,stamp))
+            if conn is None:
+                conn = db()
+            cur = conn.execute(
+                "INSERT INTO trades(pair,strategy,side,entry,stop_loss,take_profit,opened_at) VALUES(?,?,?,?,?,?,?)",
+                (pair, strategy_tag, side, entry_price, sl, tp, stamp)
+            )
             trade_id = cur.lastrowid
             conn.commit()
-            conn.close()
-        return {"opened":True, "id":trade_id, "side":side, "confirmations":confirmations}
+
+        return {
+            "opened": True, "id": trade_id, "pair": pair, "side": side,
+            "entry": entry_price, "stop_loss": sl, "take_profit": tp,
+            "confirmations": confirmations, "opened_at": stamp, "closed": closed
+        }
     except Exception as exc:
-        try:
-            if 'conn' in locals() and conn:
-                conn.close()
-        except Exception:
-            pass
-        return {"opened":False, "closed":None, "error":str(exc)[:250]}
+        return {"opened": False, "closed": None, "error": str(exc)[:250]}
+    finally:
+        if conn:
+            conn.close()
 
 @app.get("/api/capital/scan")
 async def capital_demo_scan_all(x_auto_scan_key: str = Header(default="")):
@@ -635,7 +692,7 @@ async def capital_demo_scan_all(x_auto_scan_key: str = Header(default="")):
             confirmations = buy_count if summary == "BUY" else sell_count if summary == "SELL" else 0
             journal_event = auto_journal_sync(
                 pair, summary if summary in ("BUY", "SELL") else None,
-                price, bars[-2][2], bars[-2][3], candle_time, confirmations
+                price, bars, candle_time, confirmations
             ) if auto_journal_enabled else {"opened":False, "closed":None, "reason":"Автожурнал запускается по расписанию"}
             results.append({
                 "pair": pair,
