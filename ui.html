@@ -35,6 +35,35 @@ main{padding:10px 11px 14px;max-width:900px;margin:auto}.screen{display:none}.sc
 .nav{position:fixed;bottom:0;left:0;right:0;height:67px;background:#101a2b;border-top:1px solid var(--line);display:flex;justify-content:space-around;z-index:10;padding-bottom:env(safe-area-inset-bottom)}
 .nav button{border:0;background:none;color:var(--muted);font-size:10px;min-width:70px}.nav button span{display:block;font-size:19px;margin-bottom:3px}.nav button.active{color:var(--blue)}
 .note{font-size:10px;color:var(--muted);line-height:1.5;margin-top:10px}
+
+/* Automatic all-pairs / all-strategies signal board */
+.pair-strip{grid-template-columns:repeat(4,minmax(0,1fr))}
+.pair{min-height:62px}
+.pair .dot{width:8px;height:8px;background:var(--gold);box-shadow:0 0 7px currentColor}
+.pair.signal-buy .dot{background:var(--green);color:var(--green)}
+.pair.signal-sell .dot{background:var(--red);color:var(--red)}
+.pair.signal-error .dot{background:var(--muted);color:var(--muted)}
+.pair .pair-state{font-size:9px;font-weight:800;display:block;margin-top:4px}
+.pair.signal-buy .pair-state{color:var(--green)}
+.pair.signal-sell .pair-state{color:var(--red)}
+.pair.signal-wait .pair-state{color:var(--gold)}
+.pair .pair-count{font-size:8px;color:var(--muted);display:block;margin-top:2px}
+.signal-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:10px;color:var(--muted);margin:8px 0 12px}
+.signal-legend span{display:flex;align-items:center;gap:5px}
+.lamp{display:inline-block;width:9px;height:9px;border-radius:50%;flex:0 0 9px;background:var(--gold);box-shadow:0 0 7px currentColor}
+.lamp-wait{background:var(--gold);color:var(--gold)}
+.lamp-buy{background:var(--green);color:var(--green)}
+.lamp-sell{background:var(--red);color:var(--red)}
+.signal-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;width:100%;padding:10px 2px;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--text);text-align:left}
+.signal-row:last-child{border-bottom:0}
+.signal-row:active{background:var(--panel2)}
+.signal-name{font-size:11px;font-weight:700;display:flex;align-items:center;gap:8px}
+.signal-state{font-size:10px;font-weight:800;text-align:right}
+.signal-levels{font-size:9px;color:var(--muted);margin:4px 0 0 17px;display:flex;gap:10px;flex-wrap:wrap}
+.signal-levels b{font-weight:700}
+.signal-row.selected{background:#172947;border-radius:8px;padding-left:7px;padding-right:7px}
+#scan-status{font-size:9px}
+
 @media(min-width:700px){.market-layout{grid-template-columns:1.2fr .8fr}.pair-strip{grid-template-columns:repeat(4,1fr)}.stats{grid-template-columns:repeat(4,1fr)}.stat b{font-size:24px}}
 </style>
 </head>
@@ -49,11 +78,16 @@ main{padding:10px 11px 14px;max-width:900px;margin:auto}.screen{display:none}.sc
  </div>
  <div class="pairs-heading"><strong>Валютные пары</strong><span class="muted">20 инструментов · нажми для выбора</span></div>
  <div id="pairs" class="pair-strip"></div>
+ <div class="panel signals-panel">
+  <div class="section-head"><h2>Сигналы по всем стратегиям</h2><span class="muted" id="scan-status">Загрузка сканера...</span></div>
+  <div class="signal-legend"><span><i class="lamp lamp-wait"></i> Ожидание</span><span><i class="lamp lamp-sell"></i> SELL</span><span><i class="lamp lamp-buy"></i> BUY</span></div>
+  <div id="strategy-signals"><div class="empty">Загружаем сигналы по выбранной паре...</div></div>
+  <div class="note">Все 20 стратегий проверяются автоматически по закрытым 5-минутным свечам. Нажми на стратегию, чтобы показать её сигнал и уровни на графике.</div>
+ </div>
  <div class="panel strategy-panel">
-  <div class="section-head"><h2>Активная стратегия</h2><span class="muted">5M</span></div>
+  <div class="section-head"><h2>Стратегия на графике</h2><span class="muted">не влияет на общий сканер</span></div>
   <select id="strategy-select" class="select"></select>
-  <button class="btn" id="toggle-scan" onclick="toggleScan()">▶ Включить стратегию</button>
-  <div class="note">График загружается из реальных 5-минутных свечей Capital.com Demo. Сканер отключён до проверки расчёта сигналов на реальных данных. Ордеры брокеру не отправляются.</div>
+  <div class="note">Выбор здесь меняет только сигнал в карточке графика. Все 20 стратегий продолжают проверяться автоматически. Только анализ: реальные ордера не отправляются.</div>
  </div>
 </section>
 <section id="journal" class="screen">
@@ -93,7 +127,7 @@ function renderPairs(){ $("pairs").innerHTML=PAIRS.map(p=>`<button class="pair $
 function choosePair(p){selected=p;renderPairs();$("symbol").textContent=label(p);$("current-price").textContent=fmt(prices[p]);if(series){series.setData(candles[p]);chart.timeScale().fitContent()}}
 function initChart(){if(!window.LightweightCharts)return;chart=LightweightCharts.createChart($("chart"),{width:$("chart").clientWidth,height:255,layout:{background:{color:"#111c2e"},textColor:"#8494ad"},grid:{vertLines:{color:"#1c2b41"},horzLines:{color:"#1c2b41"}},rightPriceScale:{borderColor:"#24334b"},timeScale:{borderColor:"#24334b",timeVisible:true},handleScroll:false,handleScale:false});series=chart.addCandlestickSeries({upColor:"#20c997",downColor:"#ff657a",borderVisible:false,wickUpColor:"#20c997",wickDownColor:"#ff657a"});for(const p of PAIRS)candles[p]=makeCandles(prices[p]);series.setData(candles[selected]);chart.timeScale().fitContent();window.addEventListener("resize",()=>chart.applyOptions({width:$("chart").clientWidth}))}
 function makeCandles(base){let arr=[],v=base,t=Math.floor(Date.now()/1000)-100*300;for(let i=0;i<100;i++){let o=v,c=o+(Math.random()-.5)*o*.0008,h=Math.max(o,c)+Math.random()*o*.0003,l=Math.min(o,c)-Math.random()*o*.0003;arr.push({time:t+i*300,open:o,high:h,low:l,close:c});v=c}return arr}
-async function loadStrategies(){let names;try{names=await(await fetch("/api/strategies")).json()}catch{names=["SMA 10/30","SMA 20/50","EMA 9/21","EMA 12/26","RSI 30/70","RSI 50 cross","BB Reversal","BB Breakout","MACD Cross","MACD Zero","Stoch 20/80","Stoch 50","Triple EMA","Donchian 20","Donchian 50","Momentum 10","SMA Slope","EMA Slope","Price vs SMA50","Price vs EMA20"]} $("strategy-select").innerHTML=names.map(n=>`<option>${n}</option>`).join("");$("strategy-select").value=activeStrategy;$("strategy-select").onchange=e=>{activeStrategy=e.target.value;renderStrategyList();loadRealSignal(selected)};renderStrategyList()}
+async function loadStrategies(){let names;try{names=await(await fetch("/api/strategies")).json()}catch{names=["SMA 10/30","SMA 20/50","EMA 9/21","EMA 12/26","RSI 30/70","RSI 50 cross","BB Reversal","BB Breakout","MACD Cross","MACD Zero","Stoch 20/80","Stoch 50","Triple EMA","Donchian 20","Donchian 50","Momentum 10","SMA Slope","EMA Slope","Price vs SMA50","Price vs EMA20"]} $("strategy-select").innerHTML=names.map(n=>`<option>${n}</option>`).join("");$("strategy-select").value=activeStrategy;$("strategy-select").onchange=e=>{activeStrategy=e.target.value;renderStrategyList();renderStrategySignals();loadRealSignal(selected)};renderStrategyList()}
 function renderStrategyList(){let opts=[...$("strategy-select").options].map(o=>o.value);$("strategy-list").innerHTML=opts.map(n=>{let r=compareResults[n];return `<div class="strategy-card"><div class="strategy-info"><strong>${n}</strong>${r?`<div class="strategy-result"><span>Место: #${r.rank}</span><span>${r.trades} сделок</span><span>Win rate: ${r.winrate}%</span><b class="${r.pnl>=0?"green":"red"}">${r.pnl}R</b></div>`:""}</div>${r?`<div class="strategy-actions"><button class="${n===activeStrategy?"active":""}" onclick="setStrategy(&quot;${n}&quot;)">${n===activeStrategy?"Выбрана":"Выбрать"}</button></div>`:""}</div>`}).join("")}
 function setStrategy(n){activeStrategy=n;$("strategy-select").value=n;renderStrategyList()}
 function toggleScan(){scanning=!scanning;$("toggle-scan").textContent=scanning?"Ⅱ Остановить стратегию":"▶ Включить стратегию";$("toggle-scan").classList.toggle("secondary",scanning);if(scanning){scanOnce();scanTimer=setInterval(scanOnce,30000)}else{clearInterval(scanTimer);scanTimer=null}}
@@ -120,18 +154,22 @@ async function clearJournal(){if(!confirm("Удалить ВСЕ сделки и
 
 /* ========== REAL CAPITAL.COM DEMO CANDLES ========== */
 let realPrices = {};
+let allSignalData = {};
+let signalScanTimer = null;
+let signalScanBusy = false;
 let candleRefreshTimer = null;
 let firstChartLoad = true;
 
 function renderPairs(){
-  $("pairs").innerHTML = PAIRS.map(p =>
-    "<button class=\"pair "+(p===selected?"active":"")+"\" data-pair=\""+p+"\">"+
-    "<strong><i class=\"dot\"></i>"+label(p)+"</strong>"+
-    "<span>"+(realPrices[p] ? fmt(realPrices[p]) : "—")+"</span></button>"
-  ).join("");
-  document.querySelectorAll("#pairs [data-pair]").forEach(b=>{
-    b.onclick=()=>choosePair(b.dataset.pair);
-  });
+  $("pairs").innerHTML=PAIRS.map(p=>{
+    const d=allSignalData[p], state=d&&!d.error?d.summary:"WAIT";
+    const cls=d&&d.error?"signal-error":state==="BUY"?"signal-buy":state==="SELL"?"signal-sell":"signal-wait";
+    const stateText=d&&d.error?"НЕТ ДАННЫХ":state==="BUY"?"BUY":state==="SELL"?"SELL":"ОЖИДАНИЕ";
+    const counts=d&&!d.error?("BUY "+d.buy_count+" · SELL "+d.sell_count):"ожидание данных";
+    const price=d&&d.price?fmt(d.price):(realPrices[p]?fmt(realPrices[p]):"—");
+    return "<button class=\"pair "+(p===selected?"active ":"")+cls+"\" data-pair=\""+p+"\"><strong><i class=\"dot\"></i>"+label(p)+"</strong><span>"+price+"</span><span class=\"pair-state\">"+stateText+"</span><span class=\"pair-count\">"+counts+"</span></button>";
+  }).join("");
+  document.querySelectorAll("#pairs [data-pair]").forEach(b=>{b.onclick=()=>choosePair(b.dataset.pair)});
 }
 
 function initChart(){
@@ -161,28 +199,58 @@ function initChart(){
 }
 
 
+function showSignalOnChart(data){
+  const d=$("direction");
+  d.textContent=data.signal==="BUY"?"ПОКУПКА":data.signal==="SELL"?"ПРОДАЖА":"ОЖИДАНИЕ";
+  d.className=data.signal==="BUY"?"green":data.signal==="SELL"?"red":"";
+  $("sl").textContent=data.stop_loss==null?"—":fmt(data.stop_loss);
+  $("tp").textContent=data.take_profit==null?"—":fmt(data.take_profit);
+  d.title=activeStrategy+" · реальные свечи Capital.com Demo";
+}
 async function loadRealSignal(pair){
+  const cached=allSignalData[pair];
+  if(cached&&!cached.error){
+    const item=(cached.signals||[]).find(x=>x.strategy===activeStrategy);
+    if(item){showSignalOnChart(item);return}
+  }
   try{
-    const strategy=encodeURIComponent(activeStrategy);
-    const response=await fetch("/api/capital/signal/"+encodeURIComponent(pair)+"?strategy="+strategy,{cache:"no-store"});
+    const response=await fetch("/api/capital/signal/"+encodeURIComponent(pair)+"?strategy="+encodeURIComponent(activeStrategy),{cache:"no-store"});
     const data=await response.json();
-    if(!response.ok) throw new Error(data.detail||"Не удалось рассчитать сигнал");
-    if(pair!==selected) return;
-    const direction=$("direction");
-    direction.textContent=data.signal==="BUY"?"ПОКУПКА":data.signal==="SELL"?"ПРОДАЖА":"ОЖИДАНИЕ";
-    direction.className=data.signal==="BUY"?"green":data.signal==="SELL"?"red":"";
-    $("sl").textContent=data.stop_loss==null?"—":fmt(data.stop_loss);
-    $("tp").textContent=data.take_profit==null?"—":fmt(data.take_profit);
-    direction.title=activeStrategy+" · реальные свечи Capital.com Demo";
+    if(!response.ok)throw new Error(data.detail||"Не удалось рассчитать сигнал");
+    if(pair===selected)showSignalOnChart(data);
   }catch(error){
-    if(pair===selected){
-      $("direction").textContent="НЕТ ДАННЫХ";
-      $("direction").className="gold";
-      $("sl").textContent="—";
-      $("tp").textContent="—";
-    }
+    if(pair===selected){$("direction").textContent="НЕТ ДАННЫХ";$("direction").className="gold";$("sl").textContent="—";$("tp").textContent="—"}
     console.warn("Capital.com signal:",error);
   }
+}
+function renderStrategySignals(){
+  const data=allSignalData[selected];
+  if(!data){$("strategy-signals").innerHTML='<div class="empty">Ожидаем результаты проверки для '+label(selected)+'</div>';return}
+  if(data.error){$("strategy-signals").innerHTML='<div class="empty">'+data.error+'</div>';return}
+  $("strategy-signals").innerHTML=(data.signals||[]).map(s=>{
+    const state=s.signal||"WAIT", lamp=state==="BUY"?"lamp-buy":state==="SELL"?"lamp-sell":"lamp-wait";
+    const text=state==="BUY"?"ПОКУПКА":state==="SELL"?"ПРОДАЖА":"ОЖИДАНИЕ";
+    const levels=state==="WAIT"?"":'<div class="signal-levels"><span>Вход <b>'+fmt(s.price)+'</b></span><span>SL <b class="red">'+fmt(s.stop_loss)+'</b></span><span>TP <b class="green">'+fmt(s.take_profit)+'</b></span></div>';
+    return '<button class="signal-row '+(s.strategy===activeStrategy?"selected":"")+'" data-strategy="'+s.strategy+'"><div><div class="signal-name"><i class="lamp '+lamp+'"></i>'+s.strategy+'</div>'+levels+'</div><span class="signal-state '+(state==="BUY"?"green":state==="SELL"?"red":"gold")+'">'+text+'</span></button>';
+  }).join("");
+  document.querySelectorAll("#strategy-signals [data-strategy]").forEach(b=>{b.onclick=()=>selectSignalStrategy(b.dataset.strategy)});
+}
+function selectSignalStrategy(name){activeStrategy=name;$("strategy-select").value=name;renderStrategySignals();loadRealSignal(selected)}
+async function loadAllSignals(){
+  if(signalScanBusy)return;
+  signalScanBusy=true;$("scan-status").textContent="Проверяем 20 пар × 20 стратегий...";
+  try{
+    const response=await fetch("/api/capital/scan",{cache:"no-store"}), data=await response.json();
+    if(!response.ok)throw new Error(data.detail||"Не удалось загрузить общий сканер");
+    if(data.mode!=="DEMO"||!Array.isArray(data.results))throw new Error("Некорректный ответ сканера");
+    allSignalData={};
+    data.results.forEach(x=>{allSignalData[x.pair]=x;if(x.price)realPrices[x.pair]=x.price});
+    renderPairs();renderStrategySignals();loadRealSignal(selected);
+    $("scan-status").textContent=data.results.filter(x=>!x.error).length+"/20 пар · обновление 5 мин";
+  }catch(error){
+    $("scan-status").textContent="Ошибка сканера";console.warn("Capital.com all-strategy scan:",error);
+    if(!Object.keys(allSignalData).length)$("strategy-signals").innerHTML='<div class="empty">Не удалось получить сигналы. Проверь подключение и обнови страницу.</div>';
+  }finally{signalScanBusy=false}
 }
 async function loadRealCandles(pair){
   $("current-price").textContent="ЗАГРУЗКА...";
@@ -226,6 +294,7 @@ function choosePair(pair){
   selected=pair;
   $("symbol").textContent=label(pair);
   renderPairs();
+  renderStrategySignals();
   if(series) loadRealCandles(pair);
 }
 
@@ -237,6 +306,6 @@ function toggleScan(){
   alert("Сканер пока отключён. Реальные 5-минутные свечи уже подключены к графику, но проверка стратегий на реальных данных ещё не завершена. Сделки не открываются.");
 }
 
-window.addEventListener("load",()=>{renderPairs();initChart();loadStrategies();loadJournal()});
+window.addEventListener("load",()=>{renderPairs();initChart();loadStrategies();loadJournal();loadAllSignals();signalScanTimer=setInterval(loadAllSignals,300000)});
 </script>
 </body></html>
