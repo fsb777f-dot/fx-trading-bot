@@ -278,3 +278,166 @@ async def capital_demo_status():
             "mode": "DEMO",
             "message": "Не удалось проверить подключение к Capital.com. Подробности скрыты для защиты секретов.",
         }
+
+
+# ========== CAPITAL.COM DEMO MARKET DATA (READ ONLY) ==========
+CAPITAL_PAIR_LIST = [
+    "EURUSD", "GBPUSD", "USDJPY", "USDCHF", "AUDUSD", "USDCAD", "NZDUSD",
+    "EURGBP", "EURJPY", "EURCHF", "GBPJPY", "GBPCHF", "AUDJPY", "AUDCAD",
+    "AUDNZD", "CADJPY", "CHFJPY", "NZDJPY", "EURAUD", "EURCAD",
+]
+capital_market_cache = {}
+
+def capital_login_tokens():
+    credentials = capital_demo_credentials()
+    if not all(credentials.values()):
+        raise RuntimeError("Не заданы все переменные Capital.com Demo в Render.")
+    response = httpx.post(
+        CAPITAL_DEMO_BASE + "/api/v1/session",
+        headers={"X-CAP-API-KEY": credentials["api_key"]},
+        json={
+            "identifier": credentials["identifier"],
+            "password": credentials["password"],
+            "encryptedPassword": False,
+        },
+        timeout=20,
+    )
+    if response.is_error:
+        raise RuntimeError("Capital.com не подтвердил Demo-сессию (HTTP " + str(response.status_code) + ").")
+    cst = response.headers.get("CST")
+    security_token = response.headers.get("X-SECURITY-TOKEN")
+    if not cst or not security_token:
+        raise RuntimeError("Capital.com не вернул токены Demo-сессии.")
+    return {"CST": cst, "X-SECURITY-TOKEN": security_token}
+
+def capital_find_market(pair, headers):
+    if pair in capital_market_cache:
+        return capital_market_cache[pair]
+    search_term = pair[:3] + "/" + pair[3:]
+    response = httpx.get(
+        CAPITAL_DEMO_BASE + "/api/v1/markets",
+        headers=headers,
+        params={"searchTerm": search_term},
+        timeout=20,
+    )
+    if response.is_error:
+        raise RuntimeError("Не удалось найти рынок " + search_term + " (HTTP " + str(response.status_code) + ").")
+    markets = response.json().get("markets", [])
+    def norm(value):
+        return "".join(ch for ch in str(value or "").upper() if ch.isalnum())
+    exact = [
+        item for item in markets
+        if norm(item.get("instrumentName")) == pair
+        or norm(item.get("symbol")) == pair
+        or norm(item.get("epic")) == pair
+    ]
+    candidates = exact or [
+        item for item in markets
+        if pair in norm(item.get("instrumentName"))
+        and item.get("instrumentType") == "CURRENCIES"
+    ]
+    market = next(
+        (item for item in candidates if item.get("instrumentType") == "CURRENCIES"),
+        candidates[0] if candidates else None,
+    )
+    if market and market.get("epic"):
+        capital_market_cache[pair] = market
+        return market
+    return None
+
+@app.get("/api/capital/markets")
+async def capital_demo_markets():
+    try:
+        headers = capital_login_tokens()
+        found, missing = [], []
+        for index, pair in enumerate(CAPITAL_PAIR_LIST):
+            if index:
+                time.sleep(0.12)
+            market = capital_find_market(pair, headers)
+            if market:
+                found.append({
+                    "pair": pair,
+                    "epic": market.get("epic"),
+                    "name": market.get("instrumentName"),
+                    "bid": market.get("bid"),
+                    "ask": market.get("offer"),
+                    "market_status": market.get("marketStatus"),
+                    "streaming_available": market.get("streamingPricesAvailable"),
+                })
+            else:
+                missing.append(pair)
+        return {
+            "connected": True,
+            "mode": "DEMO",
+            "found_count": len(found),
+            "missing_count": len(missing),
+            "markets": found,
+            "not_found": missing,
+            "source": "Capital.com Demo API",
+        }
+    except Exception as exc:
+        raise HTTPException(503, "Ошибка получения рынков Capital.com Demo: " + str(exc))
+
+@app.get("/api/capital/candles/{pair}")
+async def capital_demo_candles(pair: str, resolution: str = "MINUTE_5", max_bars: int = 300):
+    pair = pair.upper()
+    if pair not in CAPITAL_PAIR_LIST:
+        raise HTTPException(400, "Эта валютная пара не входит в список приложения.")
+    if resolution not in ("MINUTE", "MINUTE_5", "MINUTE_15", "MINUTE_30", "HOUR", "HOUR_4"):
+        raise HTTPException(400, "Недопустимый таймфрейм.")
+    max_bars = max(10, min(int(max_bars), 1000))
+    try:
+        headers = capital_login_tokens()
+        market = capital_find_market(pair, headers)
+        if not market:
+            raise HTTPException(404, "Capital.com Demo не нашёл эту валютную пару.")
+        response = httpx.get(
+            CAPITAL_DEMO_BASE + "/api/v1/prices/" + market["epic"],
+            headers=headers,
+            params={"resolution": resolution, "max": max_bars},
+            timeout=20,
+        )
+        if response.is_error:
+            raise RuntimeError("Capital.com не вернул свечи (HTTP " + str(response.status_code) + ").")
+        raw_prices = response.json().get("prices", [])
+        candles = []
+        for item in raw_prices:
+            op = item.get("openPrice") or {}
+            hi = item.get("highPrice") or {}
+            lo = item.get("lowPrice") or {}
+            cl = item.get("closePrice") or {}
+            values = [op.get("bid"), hi.get("bid"), lo.get("bid"), cl.get("bid")]
+            if any(value is None for value in values):
+                continue
+            stamp = item.get("snapshotTimeUTC") or item.get("snapshotTime")
+            try:
+                parsed = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+                if parsed.tzinfo is None:
+                    parsed = parsed.replace(tzinfo=timezone.utc)
+                epoch = int(parsed.timestamp())
+            except Exception:
+                continue
+            candles.append({
+                "time": epoch,
+                "open": float(values[0]),
+                "high": float(values[1]),
+                "low": float(values[2]),
+                "close": float(values[3]),
+            })
+        snapshot = market
+        return {
+            "connected": True,
+            "mode": "DEMO",
+            "pair": pair,
+            "epic": market.get("epic"),
+            "bid": snapshot.get("bid"),
+            "ask": snapshot.get("offer"),
+            "resolution": resolution,
+            "count": len(candles),
+            "candles": candles,
+            "source": "Capital.com Demo API",
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(503, "Ошибка получения данных " + pair + ": " + str(exc))
