@@ -145,17 +145,18 @@ function renderJournal(){
   const cutoff=Date.now()-7*24*60*60*1000;
   const rows=period==="all"?journalRowsCache:journalRowsCache.filter(t=>{const ts=Date.parse(t.opened_at||"");return Number.isFinite(ts)&&ts>=cutoff});
   const closed=rows.filter(x=>x.status==="CLOSED");
-  const wins=closed.filter(x=>x.result==="TAKE_PROFIT").length;
-  const losses=closed.filter(x=>x.result==="STOP_LOSS").length;
+  const wins=closed.filter(x=>Number(x.pnl)>0).length;
+  const losses=closed.filter(x=>Number(x.pnl)<0).length;
   $("stat-total").textContent=rows.length;
   $("stat-wins").textContent=wins;
   $("stat-losses").textContent=losses;
   $("stat-rate").textContent=(closed.length?Math.round(wins/closed.length*100):0)+"%";
   $("journal-count").textContent=rows.length+(period==="all"?" записей":" за 7 дней");
   $("journal-list").innerHTML=rows.length?rows.map(t=>{
-    const cls=t.status==="OPEN"?"open":t.result==="TAKE_PROFIT"?"win":"loss";
-    const tag=t.status==="OPEN"?"В РАБОТЕ":t.result==="TAKE_PROFIT"?"TAKE PROFIT":"STOP LOSS";
-    const tagcls=t.status==="OPEN"?"open":t.result==="TAKE_PROFIT"?"tp":"sl";
+    const profitable=Number(t.pnl)>0;
+    const cls=t.status==="OPEN"?"open":profitable?"win":"loss";
+    const tag=t.status==="OPEN"?"В РАБОТЕ":t.result==="TAKE_PROFIT"?"TAKE PROFIT":t.result==="STOP_LOSS"?"STOP LOSS":t.result==="SIGNAL_REVERSAL"?(profitable?"РАЗВОРОТ · ПРИБЫЛЬ":"РАЗВОРОТ · УБЫТОК"):"ЗАКРЫТА";
+    const tagcls=t.status==="OPEN"?"open":profitable?"tp":"sl";
     const match=String(t.strategy||"").match(/^AUTO\|(BUY|SELL)\|(\d+)\|(\d+)$/);
     const strategyText=match?"Автосканер · "+match[1]+" · "+match[2]+" подтверждения":(t.strategy||"—");
     const opened=t.opened_at?new Date(t.opened_at).toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"";
