@@ -184,3 +184,97 @@ async def health():
 @app.get("/api/config")
 async def config():
     return {"journal_storage": "CLOUD" if cloud_db_enabled() else "LOCAL_TEMPORARY", "cloud_database_ready": cloud_db_enabled()}
+
+# ========== CAPITAL.COM DEMO (READ-ONLY CONNECTION CHECK) ==========
+CAPITAL_DEMO_BASE = "https://demo-api-capital.backend-capital.com"
+
+def capital_demo_credentials():
+    return {
+        "api_key": os.getenv("DEMO_CAPITAL_API_KEY", "").strip(),
+        "identifier": os.getenv("DEMO_CAPITAL_IDENTIFIER", "").strip(),
+        "password": os.getenv("DEMO_CAPITAL_API_PASSWORD", ""),
+    }
+
+@app.get("/api/capital/status")
+async def capital_demo_status():
+    credentials = capital_demo_credentials()
+    missing = [name for name, value in [
+        ("DEMO_CAPITAL_API_KEY", credentials["api_key"]),
+        ("DEMO_CAPITAL_IDENTIFIER", credentials["identifier"]),
+        ("DEMO_CAPITAL_API_PASSWORD", credentials["password"]),
+    ] if not value]
+    if missing:
+        return {
+            "connected": False,
+            "mode": "DEMO",
+            "message": "Не все переменные Capital.com Demo добавлены в Render.",
+            "missing": missing,
+        }
+
+    try:
+        response = httpx.post(
+            CAPITAL_DEMO_BASE + "/api/v1/session",
+            headers={"X-CAP-API-KEY": credentials["api_key"]},
+            json={
+                "identifier": credentials["identifier"],
+                "password": credentials["password"],
+                "encryptedPassword": False,
+            },
+            timeout=20,
+        )
+        if response.status_code in (401, 403):
+            return {
+                "connected": False,
+                "mode": "DEMO",
+                "message": "Capital.com отклонил вход. Проверь Demo API key, логин и API password в Render.",
+            }
+        if response.is_error:
+            return {
+                "connected": False,
+                "mode": "DEMO",
+                "message": "Capital.com вернул ошибку авторизации.",
+                "http_status": response.status_code,
+            }
+
+        cst = response.headers.get("CST")
+        security_token = response.headers.get("X-SECURITY-TOKEN")
+        if not cst or not security_token:
+            return {
+                "connected": False,
+                "mode": "DEMO",
+                "message": "Вход выполнен без ожидаемых токенов сессии. Проверь ответ Capital.com.",
+            }
+
+        details = httpx.get(
+            CAPITAL_DEMO_BASE + "/api/v1/session",
+            headers={"CST": cst, "X-SECURITY-TOKEN": security_token},
+            timeout=20,
+        )
+        if details.is_error:
+            return {
+                "connected": False,
+                "mode": "DEMO",
+                "message": "Сессия создана, но не удалось прочитать сведения аккаунта.",
+                "http_status": details.status_code,
+            }
+
+        account = details.json()
+        return {
+            "connected": True,
+            "mode": "DEMO",
+            "message": "Подключение к Capital.com Demo успешно.",
+            "currency": account.get("currency"),
+            "timezone_offset": account.get("timezoneOffset"),
+        }
+    except httpx.TimeoutException:
+        return {
+            "connected": False,
+            "mode": "DEMO",
+            "message": "Capital.com не ответил вовремя. Попробуй проверить подключение позже.",
+        }
+    except Exception:
+        return {
+            "connected": False,
+            "mode": "DEMO",
+            "message": "Не удалось проверить подключение к Capital.com. Подробности скрыты для защиты секретов.",
+        }
