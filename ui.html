@@ -53,7 +53,7 @@ main{padding:10px 11px 14px;max-width:900px;margin:auto}.screen{display:none}.sc
   <div class="section-head"><h2>Активная стратегия</h2><span class="muted">5M</span></div>
   <select id="strategy-select" class="select"></select>
   <button class="btn" id="toggle-scan" onclick="toggleScan()">▶ Включить стратегию</button>
-  <div class="note">График загружается из TradingView. Сигналы и тестирование пока используют тестовые данные — не применяй их для реальных сделок. Ордеры брокеру не отправляются.</div>
+  <div class="note">График загружается из реальных 5-минутных свечей Capital.com Demo. Сканер отключён до проверки расчёта сигналов на реальных данных. Ордеры брокеру не отправляются.</div>
  </div>
 </section>
 <section id="journal" class="screen">
@@ -70,7 +70,7 @@ main{padding:10px 11px 14px;max-width:900px;margin:auto}.screen{display:none}.sc
 <section id="test" class="screen">
  <div class="section-head"><h2>Стратегии и тестирование</h2><span class="muted">20 вариантов</span></div>
  <div class="panel">
-  <div class="muted">Нажми кнопку, чтобы проверить все стратегии. Результаты появятся рядом с каждой стратегией.</div>
+  <div class="muted">Тест сравнивает стратегии на искусственной истории и не отражает реальные результаты рынка. Не используй его как торговый сигнал.</div>
   <button class="btn" style="margin-top:12px" onclick="runCompare()" id="compare-btn">▶ Проверить стратегии</button>
   <div id="strategy-list" style="margin-top:10px"></div>
  </div>
@@ -117,6 +117,101 @@ function updateMarket(){ /* No simulated prices: TradingView supplies the chart.
 function toggleScan(){alert("Сканер временно отключён. Реальный график уже подключён, но поток котировок для расчёта сигналов ещё не подключён. Не будем открывать сделки по случайным ценам.")}
 async function deleteTrade(id){if(!confirm("Удалить эту сделку из журнала?"))return;try{const r=await fetch("/api/journal/"+id,{method:"DELETE"});if(!r.ok)throw new Error(await r.text());await loadJournal()}catch(e){alert("Не удалось удалить сделку: "+e.message)}}
 async function clearJournal(){if(!confirm("Удалить ВСЕ сделки из журнала? Это действие нельзя отменить."))return;try{const r=await fetch("/api/journal",{method:"DELETE"});if(!r.ok)throw new Error(await r.text());await loadJournal()}catch(e){alert("Не удалось очистить журнал: "+e.message)}}
+
+/* ========== REAL CAPITAL.COM DEMO CANDLES ========== */
+let realPrices = {};
+let candleRefreshTimer = null;
+let firstChartLoad = true;
+
+function renderPairs(){
+  $("pairs").innerHTML = PAIRS.map(p =>
+    "<button class=\"pair "+(p===selected?"active":"")+"\" data-pair=\""+p+"\">"+
+    "<strong><i class=\"dot\"></i>"+label(p)+"</strong>"+
+    "<span>"+(realPrices[p] ? fmt(realPrices[p]) : "—")+"</span></button>"
+  ).join("");
+  document.querySelectorAll("#pairs [data-pair]").forEach(b=>{
+    b.onclick=()=>choosePair(b.dataset.pair);
+  });
+}
+
+function initChart(){
+  if(!window.LightweightCharts){
+    $("current-price").textContent="ОШИБКА ГРАФИКА";
+    return;
+  }
+  chart=LightweightCharts.createChart($("chart"),{
+    width:$("chart").clientWidth,
+    height:255,
+    layout:{background:{color:"#111c2e"},textColor:"#8494ad"},
+    grid:{vertLines:{color:"#1c2b41"},horzLines:{color:"#1c2b41"}},
+    rightPriceScale:{borderColor:"#24334b"},
+    timeScale:{borderColor:"#24334b",timeVisible:true,secondsVisible:false},
+    handleScroll:true,
+    handleScale:true
+  });
+  series=chart.addCandlestickSeries({
+    upColor:"#20c997",downColor:"#ff657a",borderVisible:false,
+    wickUpColor:"#20c997",wickDownColor:"#ff657a"
+  });
+  window.addEventListener("resize",()=>chart.applyOptions({width:$("chart").clientWidth}));
+  renderPairs();
+  loadRealCandles(selected);
+  if(candleRefreshTimer) clearInterval(candleRefreshTimer);
+  candleRefreshTimer=setInterval(()=>loadRealCandles(selected),60000);
+}
+
+async function loadRealCandles(pair){
+  $("current-price").textContent="ЗАГРУЗКА...";
+  try{
+    const response=await fetch("/api/capital/candles/"+encodeURIComponent(pair)+"?resolution=MINUTE_5&max_bars=300",{cache:"no-store"});
+    const data=await response.json();
+    if(!response.ok) throw new Error(data.detail||"Capital.com не вернул свечи");
+    if(data.mode!=="DEMO" || !Array.isArray(data.candles) || data.candles.length<2){
+      throw new Error("Недостаточно реальных свечей для графика");
+    }
+    if(pair!==selected) return;
+    const bars=data.candles.filter(x=>
+      Number.isFinite(x.time)&&Number.isFinite(x.open)&&Number.isFinite(x.high)&&
+      Number.isFinite(x.low)&&Number.isFinite(x.close)
+    );
+    if(bars.length<2) throw new Error("В ответе нет корректных свечей");
+    series.setData(bars);
+    chart.timeScale().fitContent();
+    const last=bars[bars.length-1];
+    realPrices[pair]=last.close;
+    $("current-price").textContent=fmt(last.close)+" · DEMO";
+    $("current-price").style.color="var(--green)";
+    $("direction").textContent="ОЖИДАНИЕ";
+    $("sl").textContent="—";
+    $("tp").textContent="—";
+    $("symbol").textContent=label(pair);
+    $("chart-status")?.remove();
+    renderPairs();
+    firstChartLoad=false;
+  }catch(error){
+    if(pair!==selected) return;
+    $("current-price").textContent="НЕТ ДАННЫХ";
+    $("current-price").style.color="var(--red)";
+    $("direction").textContent="НЕТ ДАННЫХ";
+    console.error("Capital.com candles:",error);
+  }
+}
+
+function choosePair(pair){
+  selected=pair;
+  $("symbol").textContent=label(pair);
+  renderPairs();
+  if(series) loadRealCandles(pair);
+}
+
+function updateMarket(){
+  /* No synthetic prices. The selected pair refreshes from Capital.com Demo API. */
+}
+
+function toggleScan(){
+  alert("Сканер пока отключён. Реальные 5-минутные свечи уже подключены к графику, но проверка стратегий на реальных данных ещё не завершена. Сделки не открываются.");
+}
+
 window.addEventListener("load",()=>{renderPairs();initChart();loadStrategies();loadJournal()});
 </script>
 </body></html>
