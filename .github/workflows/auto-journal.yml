@@ -1,0 +1,28 @@
+name: Automatic virtual trade journal
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: automatic-virtual-journal
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Scan Capital.com Demo and update virtual journal
+        env:
+          AUTO_SCAN_KEY: ${{ secrets.AUTO_SCAN_KEY }}
+          APP_URL: https://fx-trading-bot-2vzh.onrender.com
+        run: |
+          if [ -z "$AUTO_SCAN_KEY" ]; then
+            echo "Missing GitHub Actions secret AUTO_SCAN_KEY"
+            exit 1
+          fi
+          curl --fail --silent --show-error --max-time 240 \
+            -H "X-AUTO-SCAN-KEY: $AUTO_SCAN_KEY" \
+            "$APP_URL/api/capital/scan"
