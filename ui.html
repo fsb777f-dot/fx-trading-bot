@@ -156,7 +156,7 @@ function renderJournal(){
     const cls=t.status==="OPEN"?"open":t.result==="TAKE_PROFIT"?"win":"loss";
     const tag=t.status==="OPEN"?"В РАБОТЕ":t.result==="TAKE_PROFIT"?"TAKE PROFIT":"STOP LOSS";
     const tagcls=t.status==="OPEN"?"open":t.result==="TAKE_PROFIT"?"tp":"sl";
-    const match=String(t.strategy||"").match(/^AUTO\\|(BUY|SELL)\\|(\\d+)\\|(\\d+)$/);
+    const match=String(t.strategy||"").match(/^AUTO\|(BUY|SELL)\|(\d+)\|(\d+)$/);
     const strategyText=match?"Автосканер · "+match[1]+" · "+match[2]+" подтверждения":(t.strategy||"—");
     const opened=t.opened_at?new Date(t.opened_at).toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"";
     return '<article class="trade '+cls+'"><div class="trade-top"><strong>'+label(t.pair)+' · <span class="'+(t.side==="BUY"?"green":"red")+'">'+t.side+'</span></strong><span class="tag '+tagcls+'">'+tag+'</span></div><div class="trade-grid"><div><label>ВХОД</label><b>'+fmt(t.entry)+'</b></div><div><label>STOP LOSS</label><b class="red">'+fmt(t.stop_loss)+'</b></div><div><label>TAKE PROFIT</label><b class="green">'+fmt(t.take_profit)+'</b></div></div><div class="trade-foot"><span>'+strategyText+'</span><span>'+(t.status==="OPEN"?"Открыта":(t.pnl>0?"+":"")+t.pnl+"%")+'</span><span>'+opened+'</span><button class="delete-btn" onclick="deleteTrade('+t.id+')">Удалить</button></div></article>';
