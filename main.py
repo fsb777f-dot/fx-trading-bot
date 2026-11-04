@@ -378,6 +378,71 @@ async def capital_demo_markets():
     except Exception as exc:
         raise HTTPException(503, "Ошибка получения рынков Capital.com Demo: " + str(exc))
 
+
+@app.get("/api/capital/signal/{pair}")
+async def capital_demo_signal(pair: str, strategy: str = "EMA 9/21"):
+    pair = pair.upper()
+    if pair not in CAPITAL_PAIR_LIST:
+        raise HTTPException(400, "Эта валютная пара не входит в список приложения.")
+    if strategy not in engine.STRATEGIES:
+        raise HTTPException(400, "Неизвестная стратегия.")
+    try:
+        headers = capital_login_tokens()
+        market = capital_find_market(pair, headers)
+        if not market:
+            raise HTTPException(404, "Capital.com Demo не нашёл эту валютную пару.")
+        response = httpx.get(
+            CAPITAL_DEMO_BASE + "/api/v1/prices/" + market["epic"],
+            headers=headers,
+            params={"resolution": "MINUTE_5", "max": 300},
+            timeout=20,
+        )
+        if response.is_error:
+            raise RuntimeError("Capital.com не вернул свечи (HTTP " + str(response.status_code) + ").")
+        raw_prices = response.json().get("prices", [])
+        bars = []
+        for item in raw_prices:
+            close = (item.get("closePrice") or {}).get("bid")
+            stamp = item.get("snapshotTimeUTC") or item.get("snapshotTime")
+            if close is None or not stamp:
+                continue
+            parsed = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            bars.append((int(parsed.timestamp()), float(close)))
+        bars.sort(key=lambda x: x[0])
+        # Use the most recently completed 5-minute candle, not the live forming candle.
+        if len(bars) < 60:
+            raise HTTPException(503, "Недостаточно истории для расчёта стратегии (нужно не менее 60 свечей).")
+        history = [price for _, price in bars[:-1]]
+        index = len(history) - 1
+        indicators = engine.prepare_indicators(history)
+        signal = engine.STRATEGIES[strategy](history, indicators, index) or "WAIT"
+        price = history[index]
+        sl = tp = None
+        if signal == "BUY":
+            sl, tp = price * (1 - 0.0015), price * (1 + 0.003)
+        elif signal == "SELL":
+            sl, tp = price * (1 + 0.0015), price * (1 - 0.003)
+        return {
+            "connected": True,
+            "mode": "DEMO",
+            "pair": pair,
+            "strategy": strategy,
+            "signal": signal,
+            "price": price,
+            "stop_loss": sl,
+            "take_profit": tp,
+            "candle_time": bars[-2][0],
+            "candles_used": len(history),
+            "source": "Capital.com Demo API",
+            "orders_enabled": False,
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(503, "Не удалось рассчитать сигнал " + pair + ": " + str(exc))
+
 @app.get("/api/capital/candles/{pair}")
 async def capital_demo_candles(pair: str, resolution: str = "MINUTE_5", max_bars: int = 300):
     pair = pair.upper()
