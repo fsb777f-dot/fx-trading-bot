@@ -290,6 +290,7 @@ async function loadAllSignals(){
     allSignalData={};
     data.results.forEach(x=>{allSignalData[x.pair]=x;if(x.price)realPrices[x.pair]=x.price});
     renderPairs();renderStrategySignals();loadRealSignal(selected);
+    if($("journal").classList.contains("active"))loadJournal();
     $("scan-status").textContent=data.results.filter(x=>!x.error).length+"/20 пар · обновление 5 мин";
   }catch(error){
     $("scan-status").textContent="Ошибка сканера";console.warn("Capital.com all-strategy scan:",error);
