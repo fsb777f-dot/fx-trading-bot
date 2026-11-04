@@ -511,7 +511,30 @@ async def capital_demo_scan_all():
                 })
             buy_count = sum(1 for item in signals if item["signal"] == "BUY")
             sell_count = sum(1 for item in signals if item["signal"] == "SELL")
-            summary = "BUY" if buy_count and not sell_count else "SELL" if sell_count and not buy_count else "WAIT"
+            wait_count = len(signals) - buy_count - sell_count
+            active_count = buy_count + sell_count
+            dominant_count = max(buy_count, sell_count)
+            strength_pct = round(dominant_count / max(len(signals), 1) * 100)
+            agreement_pct = round(dominant_count / active_count * 100) if active_count else 0
+            if buy_count > sell_count and buy_count >= 5:
+                summary = "BUY"
+                strength_direction = "BUY"
+            elif sell_count > buy_count and sell_count >= 5:
+                summary = "SELL"
+                strength_direction = "SELL"
+            else:
+                summary = "WAIT"
+                strength_direction = "NONE"
+            if strength_direction == "NONE":
+                strength_label = "Нет согласия"
+            elif strength_pct >= 60:
+                strength_label = "Очень сильный"
+            elif strength_pct >= 40:
+                strength_label = "Сильный"
+            elif strength_pct >= 25:
+                strength_label = "Средний"
+            else:
+                strength_label = "Слабый"
             results.append({
                 "pair": pair,
                 "price": price,
@@ -519,6 +542,12 @@ async def capital_demo_scan_all():
                 "candles_used": len(history),
                 "buy_count": buy_count,
                 "sell_count": sell_count,
+                "wait_count": wait_count,
+                "active_count": active_count,
+                "strength_pct": strength_pct,
+                "agreement_pct": agreement_pct,
+                "strength_direction": strength_direction,
+                "strength_label": strength_label,
                 "summary": summary,
                 "signals": signals,
             })
