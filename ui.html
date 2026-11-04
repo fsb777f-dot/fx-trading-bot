@@ -93,7 +93,7 @@ function renderPairs(){ $("pairs").innerHTML=PAIRS.map(p=>`<button class="pair $
 function choosePair(p){selected=p;renderPairs();$("symbol").textContent=label(p);$("current-price").textContent=fmt(prices[p]);if(series){series.setData(candles[p]);chart.timeScale().fitContent()}}
 function initChart(){if(!window.LightweightCharts)return;chart=LightweightCharts.createChart($("chart"),{width:$("chart").clientWidth,height:255,layout:{background:{color:"#111c2e"},textColor:"#8494ad"},grid:{vertLines:{color:"#1c2b41"},horzLines:{color:"#1c2b41"}},rightPriceScale:{borderColor:"#24334b"},timeScale:{borderColor:"#24334b",timeVisible:true},handleScroll:false,handleScale:false});series=chart.addCandlestickSeries({upColor:"#20c997",downColor:"#ff657a",borderVisible:false,wickUpColor:"#20c997",wickDownColor:"#ff657a"});for(const p of PAIRS)candles[p]=makeCandles(prices[p]);series.setData(candles[selected]);chart.timeScale().fitContent();window.addEventListener("resize",()=>chart.applyOptions({width:$("chart").clientWidth}))}
 function makeCandles(base){let arr=[],v=base,t=Math.floor(Date.now()/1000)-100*300;for(let i=0;i<100;i++){let o=v,c=o+(Math.random()-.5)*o*.0008,h=Math.max(o,c)+Math.random()*o*.0003,l=Math.min(o,c)-Math.random()*o*.0003;arr.push({time:t+i*300,open:o,high:h,low:l,close:c});v=c}return arr}
-async function loadStrategies(){let names;try{names=await(await fetch("/api/strategies")).json()}catch{names=["SMA 10/30","SMA 20/50","EMA 9/21","EMA 12/26","RSI 30/70","RSI 50 cross","BB Reversal","BB Breakout","MACD Cross","MACD Zero","Stoch 20/80","Stoch 50","Triple EMA","Donchian 20","Donchian 50","Momentum 10","SMA Slope","EMA Slope","Price vs SMA50","Price vs EMA20"]} $("strategy-select").innerHTML=names.map(n=>`<option>${n}</option>`).join("");$("strategy-select").value=activeStrategy;$("strategy-select").onchange=e=>{activeStrategy=e.target.value;renderStrategyList()};renderStrategyList()}
+async function loadStrategies(){let names;try{names=await(await fetch("/api/strategies")).json()}catch{names=["SMA 10/30","SMA 20/50","EMA 9/21","EMA 12/26","RSI 30/70","RSI 50 cross","BB Reversal","BB Breakout","MACD Cross","MACD Zero","Stoch 20/80","Stoch 50","Triple EMA","Donchian 20","Donchian 50","Momentum 10","SMA Slope","EMA Slope","Price vs SMA50","Price vs EMA20"]} $("strategy-select").innerHTML=names.map(n=>`<option>${n}</option>`).join("");$("strategy-select").value=activeStrategy;$("strategy-select").onchange=e=>{activeStrategy=e.target.value;renderStrategyList();loadRealSignal(selected)};renderStrategyList()}
 function renderStrategyList(){let opts=[...$("strategy-select").options].map(o=>o.value);$("strategy-list").innerHTML=opts.map(n=>{let r=compareResults[n];return `<div class="strategy-card"><div class="strategy-info"><strong>${n}</strong>${r?`<div class="strategy-result"><span>Место: #${r.rank}</span><span>${r.trades} сделок</span><span>Win rate: ${r.winrate}%</span><b class="${r.pnl>=0?"green":"red"}">${r.pnl}R</b></div>`:""}</div>${r?`<div class="strategy-actions"><button class="${n===activeStrategy?"active":""}" onclick="setStrategy(&quot;${n}&quot;)">${n===activeStrategy?"Выбрана":"Выбрать"}</button></div>`:""}</div>`}).join("")}
 function setStrategy(n){activeStrategy=n;$("strategy-select").value=n;renderStrategyList()}
 function toggleScan(){scanning=!scanning;$("toggle-scan").textContent=scanning?"Ⅱ Остановить стратегию":"▶ Включить стратегию";$("toggle-scan").classList.toggle("secondary",scanning);if(scanning){scanOnce();scanTimer=setInterval(scanOnce,30000)}else{clearInterval(scanTimer);scanTimer=null}}
@@ -157,9 +157,33 @@ function initChart(){
   renderPairs();
   loadRealCandles(selected);
   if(candleRefreshTimer) clearInterval(candleRefreshTimer);
-  candleRefreshTimer=setInterval(()=>loadRealCandles(selected),60000);
+  candleRefreshTimer=setInterval(()=>{loadRealCandles(selected);loadRealSignal(selected)},60000);
 }
 
+
+async function loadRealSignal(pair){
+  try{
+    const strategy=encodeURIComponent(activeStrategy);
+    const response=await fetch("/api/capital/signal/"+encodeURIComponent(pair)+"?strategy="+strategy,{cache:"no-store"});
+    const data=await response.json();
+    if(!response.ok) throw new Error(data.detail||"Не удалось рассчитать сигнал");
+    if(pair!==selected) return;
+    const direction=$("direction");
+    direction.textContent=data.signal==="BUY"?"ПОКУПКА":data.signal==="SELL"?"ПРОДАЖА":"ОЖИДАНИЕ";
+    direction.className=data.signal==="BUY"?"green":data.signal==="SELL"?"red":"";
+    $("sl").textContent=data.stop_loss==null?"—":fmt(data.stop_loss);
+    $("tp").textContent=data.take_profit==null?"—":fmt(data.take_profit);
+    direction.title=activeStrategy+" · реальные свечи Capital.com Demo";
+  }catch(error){
+    if(pair===selected){
+      $("direction").textContent="НЕТ ДАННЫХ";
+      $("direction").className="gold";
+      $("sl").textContent="—";
+      $("tp").textContent="—";
+    }
+    console.warn("Capital.com signal:",error);
+  }
+}
 async function loadRealCandles(pair){
   $("current-price").textContent="ЗАГРУЗКА...";
   try{
@@ -187,6 +211,7 @@ async function loadRealCandles(pair){
     $("symbol").textContent=label(pair);
     $("chart-status")?.remove();
     renderPairs();
+    loadRealSignal(pair);
     firstChartLoad=false;
   }catch(error){
     if(pair!==selected) return;
