@@ -443,6 +443,102 @@ async def capital_demo_signal(pair: str, strategy: str = "EMA 9/21"):
     except Exception as exc:
         raise HTTPException(503, "Не удалось рассчитать сигнал " + pair + ": " + str(exc))
 
+@app.get("/api/capital/scan")
+async def capital_demo_scan_all():
+    """Read-only scan: all 20 currency pairs x all 20 strategies on closed M5 candles."""
+    try:
+        headers = capital_login_tokens()
+    except Exception as exc:
+        raise HTTPException(503, "Не удалось подключиться к Capital.com Demo: " + str(exc))
+
+    results = []
+    for pair in CAPITAL_PAIR_LIST:
+        try:
+            market = capital_find_market(pair, headers)
+            if not market:
+                results.append({"pair": pair, "error": "Рынок не найден", "signals": []})
+                continue
+            response = httpx.get(
+                CAPITAL_DEMO_BASE + "/api/v1/prices/" + market["epic"],
+                headers=headers,
+                params={"resolution": "MINUTE_5", "max": 300},
+                timeout=20,
+            )
+            if response.is_error:
+                results.append({"pair": pair, "error": "Capital.com не вернул свечи (HTTP " + str(response.status_code) + ")", "signals": []})
+                continue
+            bars = []
+            for item in response.json().get("prices", []):
+                close = (item.get("closePrice") or {}).get("bid")
+                stamp = item.get("snapshotTimeUTC") or item.get("snapshotTime")
+                if close is None or not stamp:
+                    continue
+                parsed = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+                if parsed.tzinfo is None:
+                    parsed = parsed.replace(tzinfo=timezone.utc)
+                bars.append((int(parsed.timestamp()), float(close)))
+            bars.sort(key=lambda x: x[0])
+            if len(bars) < 60:
+                results.append({"pair": pair, "error": "Недостаточно свечей", "signals": []})
+                continue
+
+            # Calculate only on the latest completed 5-minute candle.
+            history = [price for _, price in bars[:-1]]
+            index = len(history) - 1
+            price = history[index]
+            indicators = engine.prepare_indicators(history)
+            signals = []
+            for strategy_name, strategy_fn in engine.STRATEGIES.items():
+                try:
+                    signal = strategy_fn(history, indicators, index) or "WAIT"
+                    if signal not in ("BUY", "SELL", "WAIT"):
+                        signal = "WAIT"
+                except Exception:
+                    signal = "WAIT"
+                stop_loss = take_profit = None
+                if signal == "BUY":
+                    stop_loss = price * (1 - 0.0015)
+                    take_profit = price * (1 + 0.003)
+                elif signal == "SELL":
+                    stop_loss = price * (1 + 0.0015)
+                    take_profit = price * (1 - 0.003)
+                signals.append({
+                    "strategy": strategy_name,
+                    "signal": signal,
+                    "price": price,
+                    "stop_loss": stop_loss,
+                    "take_profit": take_profit,
+                })
+            buy_count = sum(1 for item in signals if item["signal"] == "BUY")
+            sell_count = sum(1 for item in signals if item["signal"] == "SELL")
+            summary = "BUY" if buy_count and not sell_count else "SELL" if sell_count and not buy_count else "WAIT"
+            results.append({
+                "pair": pair,
+                "price": price,
+                "candle_time": bars[-2][0],
+                "candles_used": len(history),
+                "buy_count": buy_count,
+                "sell_count": sell_count,
+                "summary": summary,
+                "signals": signals,
+            })
+            time.sleep(0.08)
+        except Exception:
+            results.append({"pair": pair, "error": "Ошибка получения или расчёта данных", "signals": []})
+
+    return {
+        "connected": True,
+        "mode": "DEMO",
+        "source": "Capital.com Demo API",
+        "timeframe": "MINUTE_5",
+        "refresh_seconds": 300,
+        "orders_enabled": False,
+        "strategies_checked": len(engine.STRATEGIES),
+        "pairs_checked": len(CAPITAL_PAIR_LIST),
+        "results": results,
+    }
+
+
 @app.get("/api/capital/candles/{pair}")
 async def capital_demo_candles(pair: str, resolution: str = "MINUTE_5", max_bars: int = 300):
     pair = pair.upper()
