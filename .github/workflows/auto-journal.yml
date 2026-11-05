@@ -15,7 +15,7 @@ concurrency:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Check Python syntax
         uses: actions/checkout@v4
@@ -35,6 +35,6 @@ jobs:
             echo "Waiting for AUTO_SCAN_KEY to be added in GitHub and Render."
             exit 0
           fi
-          curl --fail --silent --show-error --max-time 240 \
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 10 --retry-max-time 300 --max-time 180 \
             -H "X-AUTO-SCAN-KEY: $AUTO_SCAN_KEY" \
             "$APP_URL/api/capital/scan"
