@@ -300,6 +300,17 @@ function renderStrategySignals(){
     return '<button class="signal-row '+(s.strategy===activeStrategy?"selected":"")+'" data-strategy="'+s.strategy+'"><div><div class="signal-name"><i class="lamp '+lamp+'"></i>'+s.strategy+'</div>'+levels+'</div><span class="signal-state '+(state==="BUY"?"green":state==="SELL"?"red":"gold")+'">'+text+'</span></button>';
   }).join("");
   document.querySelectorAll("#strategy-signals [data-strategy]").forEach(b=>{b.onclick=()=>selectSignalStrategy(b.dataset.strategy)});
+  // Keep the chart summary synchronized with the currently selected strategy row.
+  const activeSignal=(data.signals||[]).find(item=>item.strategy===activeStrategy);
+  if(activeSignal){
+    showSignalOnChart(activeSignal);
+  }else{
+    $("direction").textContent="ОЖИДАНИЕ";
+    $("direction").className="";
+    $("entry-price").textContent="—";
+    $("sl").textContent="—";
+    $("tp").textContent="—";
+  }
 }
 function selectSignalStrategy(name){activeStrategy=name;$("strategy-select").value=name;renderStrategySignals();loadRealSignal(selected)}
 async function loadAllSignals(){
