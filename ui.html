@@ -250,13 +250,20 @@ function signalLevels(data){
     target:Number.isFinite(target)&&target>0?target:entry*(side==="BUY"?1.003:0.997)
   };
 }
-function showSignalOnChart(data){
+function showSignalOnChart(data,pair=selected){
   const d=$("direction");
   const side=String(data?.signal||"WAIT").toUpperCase();
-  const levels=signalLevels(data);
+  // Some strategy responses omit their own price; use the same pair's latest
+  // confirmed scanner price, then the latest real chart price as a fallback.
+  const entryPrice=data?.price??allSignalData[pair]?.price??realPrices[pair];
+  const prepared={...data,price:entryPrice};
+  const levels=signalLevels(prepared);
+  const validEntry=Number(entryPrice)>0&&Number.isFinite(Number(entryPrice));
   d.textContent=side==="BUY"?"ПОКУПКА":side==="SELL"?"ПРОДАЖА":"ОЖИДАНИЕ";
   d.className=side==="BUY"?"green":side==="SELL"?"red":"";
-  $("entry-price").textContent=levels?fmt(levels.entry):"—";
+  // Even WAIT shows the current entry/reference price. SL/TP are only shown
+  // when a directional BUY/SELL signal exists.
+  $("entry-price").textContent=levels?fmt(levels.entry):validEntry?fmt(Number(entryPrice)):"—";
   $("sl").textContent=levels?fmt(levels.stop):"—";
   $("tp").textContent=levels?fmt(levels.target):"—";
   d.title=activeStrategy+" · реальные свечи Capital.com Demo";
