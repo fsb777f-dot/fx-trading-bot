@@ -14,7 +14,10 @@ import engine
 
 app = FastAPI(title="FX Trading Bot")
 DB_PATH = Path(__file__).with_name("trades.db")
-SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
+# Accept either the project API URL or a URL that already includes /rest/v1.
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip().rstrip("/")
+if SUPABASE_URL.endswith("/rest/v1"):
+    SUPABASE_URL = SUPABASE_URL[:-8].rstrip("/")
 SUPABASE_KEY = os.getenv("SUPABASE_SECRET_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 COOLDOWN_SECONDS = 300
 last_signal_at = {}
