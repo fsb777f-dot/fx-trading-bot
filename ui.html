@@ -238,13 +238,27 @@ function initChart(){
 }
 
 
+function signalLevels(data){
+  const side=String(data?.signal||"WAIT").toUpperCase();
+  const entry=Number(data?.price);
+  if(!["BUY","SELL"].includes(side)||!Number.isFinite(entry)||entry<=0)return null;
+  const stop=Number(data.stop_loss);
+  const target=Number(data.take_profit);
+  return {
+    entry,
+    stop:Number.isFinite(stop)&&stop>0?stop:entry*(side==="BUY"?0.9985:1.0015),
+    target:Number.isFinite(target)&&target>0?target:entry*(side==="BUY"?1.003:0.997)
+  };
+}
 function showSignalOnChart(data){
   const d=$("direction");
-  d.textContent=data.signal==="BUY"?"ПОКУПКА":data.signal==="SELL"?"ПРОДАЖА":"ОЖИДАНИЕ";
-  d.className=data.signal==="BUY"?"green":data.signal==="SELL"?"red":"";
-  $("entry-price").textContent=data.signal==="WAIT"||data.price==null?"—":fmt(data.price);
-  $("sl").textContent=data.stop_loss==null?"—":fmt(data.stop_loss);
-  $("tp").textContent=data.take_profit==null?"—":fmt(data.take_profit);
+  const side=String(data?.signal||"WAIT").toUpperCase();
+  const levels=signalLevels(data);
+  d.textContent=side==="BUY"?"ПОКУПКА":side==="SELL"?"ПРОДАЖА":"ОЖИДАНИЕ";
+  d.className=side==="BUY"?"green":side==="SELL"?"red":"";
+  $("entry-price").textContent=levels?fmt(levels.entry):"—";
+  $("sl").textContent=levels?fmt(levels.stop):"—";
+  $("tp").textContent=levels?fmt(levels.target):"—";
   d.title=activeStrategy+" · реальные свечи Capital.com Demo";
 }
 async function loadRealSignal(pair){
@@ -281,7 +295,8 @@ function renderStrategySignals(){
   $("strategy-signals").innerHTML=summaryHtml+(data.signals||[]).map(s=>{
     const state=s.signal||"WAIT", lamp=state==="BUY"?"lamp-buy":state==="SELL"?"lamp-sell":"lamp-wait";
     const text=state==="BUY"?"ПОКУПКА":state==="SELL"?"ПРОДАЖА":"ОЖИДАНИЕ";
-    const levels=state==="WAIT"?"":'<div class="signal-levels"><span>ВХОД <b>'+fmt(s.price)+'</b></span><span>STOP LOSS <b class="red">'+fmt(s.stop_loss)+'</b></span><span>TAKE PROFIT <b class="green">'+fmt(s.take_profit)+'</b></span></div>';
+    const calculated=signalLevels(s);
+    const levels=calculated?'<div class="signal-levels"><span>ВХОД <b>'+fmt(calculated.entry)+'</b></span><span>STOP LOSS <b class="red">'+fmt(calculated.stop)+'</b></span><span>TAKE PROFIT <b class="green">'+fmt(calculated.target)+'</b></span></div>':"";
     return '<button class="signal-row '+(s.strategy===activeStrategy?"selected":"")+'" data-strategy="'+s.strategy+'"><div><div class="signal-name"><i class="lamp '+lamp+'"></i>'+s.strategy+'</div>'+levels+'</div><span class="signal-state '+(state==="BUY"?"green":state==="SELL"?"red":"gold")+'">'+text+'</span></button>';
   }).join("");
   document.querySelectorAll("#strategy-signals [data-strategy]").forEach(b=>{b.onclick=()=>selectSignalStrategy(b.dataset.strategy)});
