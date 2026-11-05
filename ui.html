@@ -79,7 +79,7 @@ main{padding:10px 11px 14px;max-width:900px;margin:auto}.screen{display:none}.sc
  <div class="panel chart-panel">
   <div class="quote-head"><div><div class="muted">ГРАФИК · 5 МИНУТ</div><h2 id="symbol">EUR/USD</h2></div><div class="price" id="current-price" style="font-size:12px;color:var(--green)">TRADINGVIEW</div></div>
   <div id="chart" class="chart"></div>
-  <div class="metrics"><div class="metric"><label>СИГНАЛ</label><b id="direction">ОЖИДАНИЕ</b></div><div class="metric"><label>STOP LOSS</label><b id="sl">—</b></div><div class="metric"><label>TAKE PROFIT</label><b id="tp">—</b></div></div>
+  <div class="metrics"><div class="metric"><label>СИГНАЛ</label><b id="direction">ОЖИДАНИЕ</b></div><div class="metric"><label>ВХОД</label><b id="entry-price">—</b></div><div class="metric"><label>STOP LOSS</label><b id="sl">—</b></div><div class="metric"><label>TAKE PROFIT</label><b id="tp">—</b></div></div>
  </div>
  <div class="pairs-heading"><strong>Валютные пары</strong><span class="muted">20 инструментов · нажми для выбора</span></div>
  <div id="pairs" class="pair-strip"></div>
@@ -87,7 +87,7 @@ main{padding:10px 11px 14px;max-width:900px;margin:auto}.screen{display:none}.sc
   <div class="section-head"><h2>Сигналы по всем стратегиям</h2><span class="muted" id="scan-status">Загрузка сканера...</span></div>
   <div class="signal-legend"><span><i class="lamp lamp-wait"></i> Ожидание</span><span><i class="lamp lamp-sell"></i> SELL</span><span><i class="lamp lamp-buy"></i> BUY</span></div>
   <div id="strategy-signals"><div class="empty">Загружаем сигналы по выбранной паре...</div></div>
-  <div class="note">Все 20 стратегий проверяются автоматически по закрытым 5-минутным свечам. Нажми на стратегию, чтобы показать её сигнал и уровни на графике.</div>
+  <div class="note">Нажми BUY или SELL у стратегии — увидишь точку входа, Stop Loss и Take Profit. Автоматическая запись общей сделки в журнал происходит, когда минимум 4 стратегии одной пары подтверждают одно направление.</div>
  </div>
  <div class="panel strategy-panel">
   <div class="section-head"><h2>Стратегия на графике</h2><span class="muted">не влияет на общий сканер</span></div>
@@ -242,6 +242,7 @@ function showSignalOnChart(data){
   const d=$("direction");
   d.textContent=data.signal==="BUY"?"ПОКУПКА":data.signal==="SELL"?"ПРОДАЖА":"ОЖИДАНИЕ";
   d.className=data.signal==="BUY"?"green":data.signal==="SELL"?"red":"";
+  $("entry-price").textContent=data.signal==="WAIT"||data.price==null?"—":fmt(data.price);
   $("sl").textContent=data.stop_loss==null?"—":fmt(data.stop_loss);
   $("tp").textContent=data.take_profit==null?"—":fmt(data.take_profit);
   d.title=activeStrategy+" · реальные свечи Capital.com Demo";
@@ -271,11 +272,16 @@ function renderStrategySignals(){
   const strengthColor=score>=60?"green":score>=25?"gold":"muted";
   const summaryText=data.summary==="BUY"?"ПРЕОБЛАДАЕТ BUY":data.summary==="SELL"?"ПРЕОБЛАДАЕТ SELL":"НЕТ ОБЩЕГО СИГНАЛА";
   const summaryColor=data.summary==="BUY"?"green":data.summary==="SELL"?"red":"gold";
-  const summaryHtml='<div class="consensus-card"><div class="consensus-top"><b>'+summaryText+'</b><b class="'+summaryColor+'">'+score+'% · '+strengthText+'</b></div><div class="consensus-track"><i style="width:'+score+'%"></i></div><div class="consensus-detail">BUY '+data.buy_count+' · SELL '+data.sell_count+' · WAIT '+data.wait_count+' из 20 стратегий</div><div class="consensus-detail">Согласие среди BUY/SELL: '+data.agreement_pct+'%</div></div>';
+  const consensusSide=data.summary==="BUY"||data.summary==="SELL"?data.summary:null;
+  const consensusEntry=Number(data.price);
+  const consensusSl=consensusSide?(consensusEntry*(consensusSide==="BUY"?0.9985:1.0015)):null;
+  const consensusTp=consensusSide?(consensusEntry*(consensusSide==="BUY"?1.003:0.997)):null;
+  const consensusLevels=consensusSide?'<div class="signal-levels"><span>ВХОД <b>'+fmt(consensusEntry)+'</b></span><span>STOP LOSS <b class="red">'+fmt(consensusSl)+'</b></span><span>TAKE PROFIT <b class="green">'+fmt(consensusTp)+'</b></span></div>':'<div class="consensus-detail">Автосделка появится в журнале, когда минимум 4 стратегии подтвердят одно направление.</div>';
+  const summaryHtml='<div class="consensus-card"><div class="consensus-top"><b>'+summaryText+'</b><b class="'+summaryColor+'">'+score+'% · '+strengthText+'</b></div><div class="consensus-track"><i style="width:'+score+'%"></i></div><div class="consensus-detail">BUY '+data.buy_count+' · SELL '+data.sell_count+' · WAIT '+data.wait_count+' из 20 стратегий</div><div class="consensus-detail">Согласие среди BUY/SELL: '+data.agreement_pct+'%</div>'+consensusLevels+'</div>';
   $("strategy-signals").innerHTML=summaryHtml+(data.signals||[]).map(s=>{
     const state=s.signal||"WAIT", lamp=state==="BUY"?"lamp-buy":state==="SELL"?"lamp-sell":"lamp-wait";
     const text=state==="BUY"?"ПОКУПКА":state==="SELL"?"ПРОДАЖА":"ОЖИДАНИЕ";
-    const levels=state==="WAIT"?"":'<div class="signal-levels"><span>Цена <b>'+fmt(s.price)+'</b></span><span>SL <b class="red">'+fmt(s.stop_loss)+'</b></span><span>TP <b class="green">'+fmt(s.take_profit)+'</b></span></div>';
+    const levels=state==="WAIT"?"":'<div class="signal-levels"><span>ВХОД <b>'+fmt(s.price)+'</b></span><span>STOP LOSS <b class="red">'+fmt(s.stop_loss)+'</b></span><span>TAKE PROFIT <b class="green">'+fmt(s.take_profit)+'</b></span></div>';
     return '<button class="signal-row '+(s.strategy===activeStrategy?"selected":"")+'" data-strategy="'+s.strategy+'"><div><div class="signal-name"><i class="lamp '+lamp+'"></i>'+s.strategy+'</div>'+levels+'</div><span class="signal-state '+(state==="BUY"?"green":state==="SELL"?"red":"gold")+'">'+text+'</span></button>';
   }).join("");
   document.querySelectorAll("#strategy-signals [data-strategy]").forEach(b=>{b.onclick=()=>selectSignalStrategy(b.dataset.strategy)});
