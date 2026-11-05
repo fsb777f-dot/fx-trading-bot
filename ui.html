@@ -23,7 +23,7 @@ main{padding:10px 11px 14px;max-width:900px;margin:auto}.screen{display:none}.sc
 .pair strong{font-size:10px;display:block;white-space:nowrap}.pair span{font-size:9px;color:var(--muted);display:block;margin-top:3px;font-variant-numeric:tabular-nums}
 .pair .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-right:5px}
 .quote-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.quote-head h2{font-size:22px}.price{font-size:21px;font-weight:750;font-variant-numeric:tabular-nums}.chart{height:255px;width:100%}
-.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}.metric{background:var(--panel2);padding:8px 7px;border-radius:10px}.metric label{display:block;color:var(--muted);font-size:9px;margin-bottom:5px}.metric b{font-size:11px;font-variant-numeric:tabular-nums}.green{color:var(--green)!important}.red{color:var(--red)!important}.gold{color:var(--gold)!important}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:8px}.metric{background:var(--panel2);padding:8px 7px;border-radius:10px}.metric label{display:block;color:var(--muted);font-size:9px;margin-bottom:5px}.metric b{font-size:11px;font-variant-numeric:tabular-nums}.green{color:var(--green)!important}.red{color:var(--red)!important}.gold{color:var(--gold)!important}
 .select{width:100%;padding:12px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:10px;margin:9px 0 12px;font-size:14px}
 .btn{border:0;border-radius:10px;padding:12px 15px;background:var(--blue);color:white;font-weight:750;font-size:13px;width:100%}.btn.secondary{background:var(--panel2);border:1px solid var(--line);color:var(--text)}
 .strategy-card{display:flex;justify-content:space-between;align-items:center;gap:9px;padding:12px 0;border-bottom:1px solid var(--line)}.strategy-card:last-child{border:0}.strategy-info{min-width:0;flex:1}.strategy-card strong{font-size:12px}.strategy-result{font-size:10px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;margin-top:5px}.strategy-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}.strategy-card button{background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:8px 10px;border-radius:8px;font-size:11px}.strategy-card button.active{background:#183b32;color:var(--green);border-color:#246b56}
@@ -326,6 +326,7 @@ async function loadRealCandles(pair){
     $("current-price").textContent=fmt(last.close)+" · DEMO";
     $("current-price").style.color="var(--green)";
     $("direction").textContent="ОЖИДАНИЕ";
+    $("entry-price").textContent="—";
     $("sl").textContent="—";
     $("tp").textContent="—";
     $("symbol").textContent=label(pair);
