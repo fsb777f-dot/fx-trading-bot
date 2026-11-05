@@ -269,20 +269,28 @@ function showSignalOnChart(data,pair=selected){
   d.title=activeStrategy+" · реальные свечи Capital.com Demo";
 }
 async function loadRealSignal(pair){
-  const cached=allSignalData[pair];
-  if(cached&&!cached.error){
-    const item=(cached.signals||[]).find(x=>x.strategy===activeStrategy);
-    if(item){showSignalOnChart(item);return}
+  // Keep the chart on the pair-wide consensus. Individual strategy signals
+  // remain visible in the strategy list and must not overwrite this summary.
+  const data=allSignalData[pair];
+  if(pair!==selected)return;
+  if(!data||data.error){
+    $("direction").textContent="ОЖИДАНИЕ";
+    $("direction").className="";
+    $("entry-price").textContent=realPrices[pair]?fmt(realPrices[pair]):"—";
+    $("sl").textContent="—";
+    $("tp").textContent="—";
+    return;
   }
-  try{
-    const response=await fetch("/api/capital/signal/"+encodeURIComponent(pair)+"?strategy="+encodeURIComponent(activeStrategy),{cache:"no-store"});
-    const data=await response.json();
-    if(!response.ok)throw new Error(data.detail||"Не удалось рассчитать сигнал");
-    if(pair===selected)showSignalOnChart(data);
-  }catch(error){
-    if(pair===selected){$("direction").textContent="НЕТ ДАННЫХ";$("direction").className="gold";$("sl").textContent="—";$("tp").textContent="—"}
-    console.warn("Capital.com signal:",error);
-  }
+  const side=data.summary==="BUY"||data.summary==="SELL"?data.summary:"WAIT";
+  const entry=Number(data.price??realPrices[pair]);
+  const stop=side==="BUY"?entry*0.9985:side==="SELL"?entry*1.0015:null;
+  const target=side==="BUY"?entry*1.003:side==="SELL"?entry*0.997:null;
+  showSignalOnChart({
+    signal:side,
+    price:Number.isFinite(entry)&&entry>0?entry:undefined,
+    stop_loss:stop,
+    take_profit:target
+  },pair);
 }
 function renderStrategySignals(){
   const data=allSignalData[selected];
