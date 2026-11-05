@@ -28,7 +28,8 @@ def cloud_db_enabled():
 def cloud_request(method, table="trades", params=None, payload=None, prefer=None):
     if not cloud_db_enabled():
         raise RuntimeError("Облачная база не настроена: добавь SUPABASE_URL и SUPABASE_SECRET_KEY в Render")
-    headers = {"apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY, "Content-Type": "application/json"}
+    # Supabase sb_secret_* keys are opaque API keys, not JWTs: send only via apikey.
+    headers = {"apikey": SUPABASE_KEY, "Content-Type": "application/json"}
     if prefer:
         headers["Prefer"] = prefer
     response = httpx.request(method, SUPABASE_URL + "/rest/v1/" + table, headers=headers, params=params, json=payload, timeout=20)
